@@ -1,0 +1,86 @@
+# Test your FastAPI endpoints
+
+GET http://127.0.0.1:8000/
+Accept: application/json
+
+###
+
+GET http://127.0.0.1:8000/hello/User
+Accept: application/json
+
+###
+GET 127.0.0.1:8000/mail/test?email=570591297@qq.com
+Accept: application/json
+
+###
+GET 127.0.0.1:8000/auth/code?email=570591297@qq.com
+Accept: application/json
+
+###
+POST 127.0.0.1:8000/auth/register
+Content-Type: application/json
+
+{"email":"570591297@qq.com",
+"code":"6177",
+"username":"sangchunwei",
+"password":"123456789",
+  "confirm_password": "123456789"
+}
+
+###
+POST 127.0.0.1:8000/auth/login
+Accept: application/json
+Content-Type: application/json
+
+{"email":"570591297@qq.com",
+"password":"123456789"
+}
+
+###
+POST 127.0.0.1:8000/names/get_names
+Accept: application/json
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiIyIiwic3ViIjoiMSJ9.pzrRtVNmrMT-TNFoUiP9CoK5rrhQ-uRzyyyfFLtF2Cs
+
+{
+  "category": "企业名",
+  "other": "要尽量大气一点"
+}
+
+###
+POST http://127.0.0.1:8000/knowledge/upload
+Content-Type: multipart/form-data; boundary=WebAppBoundary
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiIyIiwic3ViIjoiMSJ9.pzrRtVNmrMT-TNFoUiP9CoK5rrhQ-uRzyyyfFLtF2Cs
+
+--WebAppBoundary
+Content-Disposition: form-data; name="file"; filename="company_rules.txt"
+Content-Type: text/plain
+
+< ./company_rules.txt
+--WebAppBoundary--
+
+###
+POST http://127.0.0.1:8000/names/generate
+Accept: application/json
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiIyIiwic3ViIjoiMSJ9.pzrRtVNmrMT-TNFoUiP9CoK5rrhQ-uRzyyyfFLtF2Cs
+
+{
+  "category": "企业名",
+  "surname": "",
+  "length": "五个字以上",
+  "gender": "不限",
+  "other": "一家做环保新材料的初创公司",
+  "exclude": []
+}
+
+###
+POST http://127.0.0.1:8000/names/feedback
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiIyIiwic3ViIjoiMSJ9.pzrRtVNmrMT-TNFoUiP9CoK5rrhQ-uRzyyyfFLtF2Cs
+
+{
+"thread_id": "9edcd33a-2662-4109-9bf1-d2158a6f501c",
+"category": "企业名",
+"feedback": "这次请把除了‘熠新’之外的4个名字，第二个字全部换成表示‘科技感’的字。"
+}
