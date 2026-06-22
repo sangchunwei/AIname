@@ -11,6 +11,14 @@
     {
       "path": "pages/register/register",
       "style": { "navigationBarTitleText": "账号注册" }
+    },
+    {
+      "path": "pages/admin-login/admin-login",
+      "style": { "navigationBarTitleText": "管理员登录" }
+    },
+    {
+      "path": "pages/admin-users/admin-users",
+      "style": { "navigationBarTitleText": "用户管理", "enablePullDownRefresh": true }
     }
   ],
   "globalStyle": {

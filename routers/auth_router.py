@@ -87,11 +87,17 @@ async def login(userinfo:LoginIn,session:AsyncSession=Depends(get_session)):
     user:User|None = await userRepository.get_user_by_email(userinfo.email)
     if not user:
         raise HTTPException(status_code=400,detail="该用户不存在!")
+    if user.is_deleted:
+        raise HTTPException(status_code=400,detail="该用户不存在!")
+    if user.is_admin:
+        raise HTTPException(status_code=403,detail="管理员账号请从管理员入口登录")
+    if user.is_frozen:
+        raise HTTPException(status_code=403,detail="账号已被冻结，请联系管理员")
     #2.看密码对不对
     if not user.check_password(userinfo.password):
         raise HTTPException(status_code=400,detail="密码错误,请重新输入")
     #3.密码正确允许登录.登录的方法是给用户返回一个令牌,用户拿着这个令牌,下次来证明已经登陆过了
-    tokens=authHandler.encode_login_token(user.id)
+    tokens=authHandler.encode_login_token(user.id, user.token_version)
     return {
         "user":user,
         "token":tokens['access_token']

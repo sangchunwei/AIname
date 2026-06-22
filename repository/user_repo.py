@@ -44,6 +44,10 @@ class UserRepository():
             result=await self.session.execute(select(User).filter(User.email==email))
             return result.scalar_one_or_none()
 
+    async def get_user_by_id(self,user_id:int):
+        async with self.session.begin():
+            return await self.session.scalar(select(User).filter(User.id==user_id))
+
     #插入一条数据
     async def create_user(self,user:UserCreateSchema):
         async with self.session.begin():

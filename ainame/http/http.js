@@ -91,6 +91,18 @@ export default {
   getEmailCode: (email) => request("/auth/code?email=" + email, { method: 'GET' }),
   register: (data) => request("/auth/register", { method: 'POST', data }),
   login: (data) => request("/auth/login", { method: 'POST', data }),
+
+  // ================= 管理员接口 =================
+  adminLogin: (data) => request("/admin/login", { method: 'POST', data }),
+  getAdminUsers: ({ page = 1, pageSize = 20, keyword = '' } = {}) =>
+    request(`/admin/users?page=${page}&page_size=${pageSize}&keyword=${encodeURIComponent(keyword)}`, { method: 'GET' }),
+  freezeUser: (userId, isFrozen) => request(`/admin/users/${userId}/freeze`, {
+    method: 'PATCH', data: { is_frozen: isFrozen }
+  }),
+  resetUserPassword: (userId, newPassword) => request(`/admin/users/${userId}/reset-password`, {
+    method: 'POST', data: { new_password: newPassword }
+  }),
+  deleteUser: (userId) => request(`/admin/users/${userId}`, { method: 'DELETE' }),
   
   // ================= 2. 智能体核心工作流 =================
   generateName: (data) => request("/names/generate", { method: 'POST', data }), // 首次起名 (无记忆)

@@ -1,6 +1,6 @@
 <template>
   <view class="container">
-    <view class="title">AI 智能起名</view>
+    <view class="title" @click="handleSecretEntry">AI 智能起名</view>
     <input class="input-box" v-model="form.email" placeholder="请输入邮箱" />
     <input class="input-box" v-model="form.password" type="password" placeholder="请输入密码" />
     <button class="btn" :loading="loading" @click="handleLogin">登录</button>
@@ -14,6 +14,24 @@ import http from '@/http/http.js';
 
 const form = ref({ email: '', password: '' });
 const loading = ref(false);
+let secretTapCount = 0;
+let firstSecretTapAt = 0;
+
+// 4 秒内连续点击标题 7 次，进入隐藏的管理员登录页。
+const handleSecretEntry = () => {
+  const now = Date.now();
+  if (!firstSecretTapAt || now - firstSecretTapAt > 4000) {
+    firstSecretTapAt = now;
+    secretTapCount = 1;
+    return;
+  }
+  secretTapCount += 1;
+  if (secretTapCount >= 7) {
+    secretTapCount = 0;
+    firstSecretTapAt = 0;
+    uni.navigateTo({ url: '/pages/admin-login/admin-login' });
+  }
+};
 
 const handleLogin = async () => {
   if (!form.value.email || !form.value.password) return uni.showToast({ title: '请填写完整', icon: 'none' });

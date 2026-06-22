@@ -7,8 +7,7 @@ if sys.platform == "win32":
     )
 
 from psycopg_pool import AsyncConnectionPool
-
-DB_URI = "postgresql://postgres:123456@127.0.0.1:5432/ainame"
+import settings
 
 
 async def main():
@@ -16,7 +15,7 @@ async def main():
     print(type(asyncio.get_running_loop()))
 
     pool = AsyncConnectionPool(
-        conninfo=DB_URI,
+        conninfo=settings.POSTGRES_CHECKPOINT_DB_URI,
         open=False
     )
 

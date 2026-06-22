@@ -1,6 +1,11 @@
 <script setup>
 import { onLaunch } from '@dcloudio/uni-app';
 onLaunch(() => {
+const admin = uni.getStorageSync('admin');
+if (admin) {
+uni.reLaunch({ url: '/pages/admin-users/admin-users' });
+return;
+}
 // 1. 应用启动时，从本地缓存中读取身份凭证 (token)
 const token = uni.getStorageSync('token');
 // 2. 如果不存在 token，说明未登录，强行拦截并跳转到登录页

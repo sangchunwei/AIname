@@ -9,22 +9,22 @@ GET http://127.0.0.1:8000/hello/User
 Accept: application/json
 
 ###
-GET 127.0.0.1:8000/mail/test?email=570591297@qq.com
+GET 127.0.0.1:8000/mail/test?email=test@example.com
 Accept: application/json
 
 ###
-GET 127.0.0.1:8000/auth/code?email=570591297@qq.com
+GET 127.0.0.1:8000/auth/code?email=test@example.com
 Accept: application/json
 
 ###
 POST 127.0.0.1:8000/auth/register
 Content-Type: application/json
 
-{"email":"570591297@qq.com",
+{"email":"test@example.com",
 "code":"6177",
 "username":"sangchunwei",
-"password":"123456789",
-  "confirm_password": "123456789"
+"password":"replace-with-test-password",
+  "confirm_password": "replace-with-test-password"
 }
 
 ###
@@ -32,8 +32,8 @@ POST 127.0.0.1:8000/auth/login
 Accept: application/json
 Content-Type: application/json
 
-{"email":"570591297@qq.com",
-"password":"123456789"
+{"email":"test@example.com",
+"password":"replace-with-test-password"
 }
 
 ###

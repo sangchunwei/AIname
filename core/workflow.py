@@ -6,6 +6,7 @@ from langchain_deepseek import ChatDeepSeek
 from pydantic import SecretStr
 from schemas.name_schemas import NameIn
 from schemas.name_schemas import NameResultSchema
+import settings
 
 
 # 定义工作流状态。这个状态是工作流的参数。也可以叫数据清单。是伴随整个流程的
@@ -26,8 +27,8 @@ class WorkFlowState(TypedDict):
     final_output: Dict[str, Any]
 
 llm = ChatDeepSeek(
-    model="deepseek-chat",
-    api_key="sk-7f05290882964a2c8967b19513e6919b",
+    model=settings.DEEPSEEK_MODEL,
+    api_key=settings.DEEPSEEK_API_KEY,
     temperature=0.5
 )
 
@@ -159,8 +160,6 @@ from psycopg_pool import AsyncConnectionPool
 
 # 1. 全局初始化：只执行一次，复用连接
 # thread_id 存入postgress
-DB_URI = "postgresql://postgres:123456@127.0.0.1:5432/ainame"
-
 connection_pool = None#数据库连接池
 naming_graph = None#编译后的 LangGraph 工作流实例
 
@@ -168,7 +167,7 @@ naming_graph = None#编译后的 LangGraph 工作流实例
 async def init_workflow_graph():
     """在 FastAPI 启动时调用此函数来初始化图和连接池"""
     global connection_pool, naming_graph
-    connection_pool = AsyncConnectionPool(DB_URI, max_size=10)
+    connection_pool = AsyncConnectionPool(settings.POSTGRES_CHECKPOINT_DB_URI, max_size=10)
     memory = AsyncPostgresSaver(connection_pool)
     # 编译带记忆的智能体
     naming_graph = workflow.compile(checkpointer=memory)

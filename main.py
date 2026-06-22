@@ -3,6 +3,7 @@ from fastapi_mail import FastMail, MessageSchema, MessageType
 from routers.auth_router import router as auth_router
 from routers.name_router import router as name_router
 from routers.rag_router import router as rag_router
+from routers.admin_router import router as admin_router
 
 from contextlib import asynccontextmanager
 from core.workflow import init_workflow_graph, close_workflow_graph
@@ -27,6 +28,7 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(name_router)
 app.include_router(rag_router)
+app.include_router(admin_router)
 @app.get("/")
 async def root():
     return {"message": "Hello World"}

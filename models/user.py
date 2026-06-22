@@ -2,7 +2,7 @@ from . import Base
 # SQLAlchemy 负责 操作数据库(操作)
 # Alembic 负责 管理数据库结构的变化(执行)
 from sqlalchemy.orm import Mapped,mapped_column#sqlaichemy数据库工具库之一,让 Python 程序操作数据库，而不用到处手写 SQL。orm 关系映射层
-from sqlalchemy import Integer,String,DateTime#核心层,偏向于SQL
+from sqlalchemy import Integer,String,DateTime,Boolean#核心层,偏向于SQL
 from pwdlib import PasswordHash#哈希加密
 from datetime import datetime
 
@@ -16,6 +16,12 @@ class User(Base):
     #数据库存储的是加密后的密码,不是明文密码
     #私有化,
     _password:Mapped[str] = mapped_column(String(200))
+    is_admin:Mapped[bool] = mapped_column(Boolean,default=False,server_default="0")
+    is_frozen:Mapped[bool] = mapped_column(Boolean,default=False,server_default="0")
+    is_deleted:Mapped[bool] = mapped_column(Boolean,default=False,server_default="0")
+    token_version:Mapped[int] = mapped_column(Integer,default=0,server_default="0")
+    created_at:Mapped[datetime] = mapped_column(DateTime,default=datetime.now)
+    deleted_at:Mapped[datetime|None] = mapped_column(DateTime,nullable=True)
 
     #1.校验数据:密码是否正确
     def __init__(self,*args,**kwargs):
