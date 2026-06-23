@@ -28,6 +28,7 @@ class AdminUserOut(BaseModel):
     email: EmailStr
     username: str
     is_frozen: bool
+    is_expert: bool
     created_at: datetime
 
 

@@ -47,3 +47,8 @@ class Base(DeclarativeBase):
     })
 
 from . import user
+from . import brand
+from . import membership
+from . import community
+from . import expert
+from . import growth

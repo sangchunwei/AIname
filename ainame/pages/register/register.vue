@@ -5,6 +5,7 @@
     <input class="input-box" v-model="form.username" placeholder="请输入用户名 (至少4个字符)" />
     
     <input class="input-box" v-model="form.email" placeholder="请输入邮箱" />
+    <input class="input-box" v-model="form.invite_code" placeholder="邀请码（选填）" />
     
     <view class="code-group">
       <input class="input-box code-input" v-model="form.code" placeholder="4位验证码" maxlength="4" />
@@ -23,6 +24,7 @@
 
 <script setup>
 import { ref } from 'vue';
+import { onLoad } from '@dcloudio/uni-app';
 import http from '@/http/http.js';
 
 // 表单数据绑定 (字段名严格对应后端 RegisterIn 的 Schema)
@@ -31,7 +33,12 @@ const form = ref({
   email: '',
   code: '',
   password: '',
-  confirm_password: ''
+  confirm_password: '',
+  invite_code: ''
+});
+
+onLoad((options) => {
+  if (options.invite) form.value.invite_code = String(options.invite).toUpperCase();
 });
 
 const loading = ref(false);

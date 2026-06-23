@@ -1,5 +1,10 @@
 <template>
   <view class="container">
+    <view class="quick-nav">
+      <view @click="goPage('/pages/community/community')">灵感社区</view>
+      <view @click="goPage('/pages/experts/experts')">专家精批</view>
+      <view @click="goPage('/pages/user-center/user-center')">个人中心</view>
+    </view>
     <view class="tabs">
       <view v-for="item in categories" :key="item" 
             :class="['tab', formData.category === item ? 'active' : '']" 
@@ -31,6 +36,7 @@
 
     <view class="result-box" v-if="names.length > 0">
       <view class="result-title">为您生成的专属方案：</view>
+      <button class="poll-btn" size="mini" @click="publishNamePoll">发布候选投票</button>
       <view class="name-card" v-for="(item, index) in names" :key="index">
         <view class="name-header">
           <text class="name-text">{{ item.name }}</text>
@@ -40,6 +46,9 @@
         </view>
         <view class="name-detail"><text class="label">出处：</text>{{ item.reference }}</view>
         <view class="name-detail"><text class="label">寓意：</text>{{ item.moral }}</view>
+        <button v-if="formData.category === '企业名'" class="brand-btn" size="mini" @click="openBrandStudio(item)">
+          选定此名字 · 生成品牌方案
+        </button>
       </view>
 
       <view class="feedback-box">
@@ -72,12 +81,29 @@ const loading = ref(false);
 const names = ref([]);
 const threadId = ref(''); // 核心：保存上下文记忆的ID
 const feedbackText = ref('');
+const goPage = (url) => uni.navigateTo({ url });
+
+const publishNamePoll = () => {
+  uni.setStorageSync('namePollDraft', names.value.map(item => ({ name: item.name, moral: item.moral })));
+  uni.navigateTo({ url: '/pages/community/community?createPoll=1' });
+};
 
 // --- 方法定义 ---
 const switchCategory = (cat) => {
   formData.value.category = cat;
   names.value = []; // 切换场景清空历史
   threadId.value = '';
+};
+
+const openBrandStudio = (item) => {
+  uni.setStorageSync('selectedNameForBrand', {
+    name: item.name,
+    reference: item.reference,
+    moral: item.moral,
+    category: formData.value.category,
+    requirement: formData.value.other
+  });
+  uni.navigateTo({ url: '/pages/brand-studio/brand-studio' });
 };
 
 // 上传专属知识库 (RAG)
@@ -161,6 +187,8 @@ const handleFeedback = async () => {
 
 <style scoped>
 .container { padding: 30rpx; background-color: #f5f7fa; min-height: 100vh; }
+.quick-nav { display: flex; justify-content: space-around; margin-bottom: 24rpx; padding: 20rpx; border-radius: 16rpx; background: #172554; color: #fff; font-size: 25rpx; }
+.poll-btn { margin: 0 0 20rpx auto; background: #7c3aed; color: #fff; border-radius: 30rpx; font-size: 23rpx; }
 /* Tabs 样式 */
 .tabs { display: flex; justify-content: space-around; background: #fff; padding: 20rpx; border-radius: 16rpx; margin-bottom: 30rpx; }
 .tab { font-size: 30rpx; color: #666; padding: 10rpx 30rpx; }
@@ -193,5 +221,6 @@ const handleFeedback = async () => {
 
 .name-detail { font-size: 26rpx; color: #666; line-height: 1.6; margin-bottom: 8rpx; }
 .label { font-weight: bold; color: #333; }
+.brand-btn { margin: 24rpx 0 0; background: #172554; color: #fff; border-radius: 30rpx; font-size: 24rpx; }
 .feedback-box { margin-top: 40rpx; background: #fff; padding: 30rpx; border-radius: 16rpx; }
 </style>

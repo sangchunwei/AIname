@@ -37,6 +37,8 @@ def _env(name: str, default: str | None = None) -> str:
 DB_URI = _env("AINAME_MYSQL_DB_URI")
 POSTGRES_CHECKPOINT_DB_URI = _env("AINAME_POSTGRES_CHECKPOINT_DB_URI")
 REDIS_URL = os.getenv("AINAME_REDIS_URL", "redis://127.0.0.1:6379/0")
+OLLAMA_BASE_URL = os.getenv("AINAME_OLLAMA_BASE_URL", "http://127.0.0.1:11434").strip()
+OLLAMA_EMBED_MODEL = os.getenv("AINAME_OLLAMA_EMBED_MODEL", "nomic-embed-text").strip()
 
 # 大模型
 DEEPSEEK_API_KEY = _env("AINAME_DEEPSEEK_API_KEY")
@@ -56,3 +58,28 @@ MAIL_SSL_TLS = os.getenv("AINAME_MAIL_SSL_TLS", "false").lower() == "true"
 JWT_SECRET_KEY = _env("AINAME_JWT_SECRET_KEY")
 JWT_ACCESS_TOKEN_EXPIRES = timedelta(days=int(os.getenv("AINAME_JWT_ACCESS_DAYS", "1")))
 JWT_REFRESH_TOKEN_EXPIRES = timedelta(days=int(os.getenv("AINAME_JWT_REFRESH_DAYS", "30")))
+
+# 品牌视觉生成。默认 mock 可直接打通流程；生产环境可切换兼容图像 API。
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+IMAGE_PROVIDER = os.getenv("AINAME_IMAGE_PROVIDER", "mock").strip().lower()
+IMAGE_API_URL = os.getenv("AINAME_IMAGE_API_URL", "").strip()
+IMAGE_API_KEY = os.getenv("AINAME_IMAGE_API_KEY", "").strip()
+IMAGE_MODEL = os.getenv("AINAME_IMAGE_MODEL", "image-generation-model").strip()
+IMAGE_SIZE = os.getenv("AINAME_IMAGE_SIZE", "1024x1024").strip()
+IMAGE_API_TIMEOUT = float(os.getenv("AINAME_IMAGE_API_TIMEOUT", "180"))
+GENERATED_ASSET_DIR = os.getenv("AINAME_GENERATED_ASSET_DIR", str(PROJECT_ROOT / "generated"))
+PUBLIC_ASSET_PREFIX = "/generated"
+DEFAULT_AVATAR_DIR = PROJECT_ROOT / "static" / "default-avatars"
+DEFAULT_AVATAR_PREFIX = "/default-avatars"
+
+# 仅限本地开发的模拟支付；生产环境必须保持 false。
+MOCK_PAYMENT_ENABLED = os.getenv("AINAME_MOCK_PAYMENT_ENABLED", "false").lower() == "true"
+FREE_DAILY_NAME_LIMIT = int(os.getenv("AINAME_FREE_DAILY_NAME_LIMIT", "10"))
+FREE_DAILY_VISUAL_LIMIT = int(os.getenv("AINAME_FREE_DAILY_VISUAL_LIMIT", "2"))
+
+# 本地增长与模拟资金配置
+EXPERT_PLATFORM_FEE_BPS = int(os.getenv("AINAME_EXPERT_PLATFORM_FEE_BPS", "1000"))
+INVITER_REWARD_CREDITS = int(os.getenv("AINAME_INVITER_REWARD_CREDITS", "3"))
+INVITEE_REWARD_CREDITS = int(os.getenv("AINAME_INVITEE_REWARD_CREDITS", "1"))
+DEFAULT_PARTNER_COMMISSION_BPS = int(os.getenv("AINAME_DEFAULT_PARTNER_COMMISSION_BPS", "1000"))
+PUBLIC_H5_URL = os.getenv("AINAME_PUBLIC_H5_URL", "http://127.0.0.1:8080").rstrip("/")

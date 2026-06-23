@@ -67,7 +67,12 @@ async def register(userinfo:RegisterIn,session:AsyncSession=Depends(get_session)
         raise HTTPException(400,detail="验证码错误或者已过期")
 
     #3.允许注册    (插入一条用户数据到数据库)
-    await userRepository.create_user(UserCreateSchema(email=userinfo.email,username=userinfo.username,password=userinfo.password))
+    new_user = await userRepository.create_user(UserCreateSchema(email=userinfo.email,username=userinfo.username,password=userinfo.password))
+
+    # 邀请码为可选项；有效邀请码会建立邀请关系并发放双方奖励次数。
+    from core.growth_service import bind_referral
+    await bind_referral(session, new_user.id, userinfo.invite_code)
+    await session.commit()
 
     #注册成功,删除redis中的数据,防止重新注册
     await redis.delete(userinfo.email)

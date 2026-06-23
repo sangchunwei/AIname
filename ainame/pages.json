@@ -19,6 +19,46 @@
     {
       "path": "pages/admin-users/admin-users",
       "style": { "navigationBarTitleText": "用户管理", "enablePullDownRefresh": true }
+    },
+    {
+      "path": "pages/brand-studio/brand-studio",
+      "style": { "navigationBarTitleText": "AI 品牌工作台" }
+    },
+    {
+      "path": "pages/user-center/user-center",
+      "style": { "navigationBarTitleText": "个人中心" }
+    },
+    {
+      "path": "pages/account-settings/account-settings",
+      "style": { "navigationBarTitleText": "修改个人信息" }
+    },
+    {
+      "path": "pages/edit-profile/edit-profile",
+      "style": { "navigationBarTitleText": "修改个人资料" }
+    },
+    {
+      "path": "pages/change-password/change-password",
+      "style": { "navigationBarTitleText": "修改密码" }
+    },
+    {
+      "path": "pages/wallet-growth/wallet-growth",
+      "style": { "navigationBarTitleText": "钱包与邀请", "enablePullDownRefresh": true }
+    },
+    {
+      "path": "pages/community/community",
+      "style": { "navigationBarTitleText": "灵感社区", "enablePullDownRefresh": true }
+    },
+    {
+      "path": "pages/experts/experts",
+      "style": { "navigationBarTitleText": "专家精批" }
+    },
+    {
+      "path": "pages/expert-workbench/expert-workbench",
+      "style": { "navigationBarTitleText": "专家工作台", "enablePullDownRefresh": true }
+    },
+    {
+      "path": "pages/admin-growth/admin-growth",
+      "style": { "navigationBarTitleText": "资金与合伙人审核", "enablePullDownRefresh": true }
     }
   ],
   "globalStyle": {

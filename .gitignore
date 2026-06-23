@@ -7,3 +7,4 @@ __pycache__/
 uploads/
 chroma_rag_db/
 ainame/unpackage/
+generated/

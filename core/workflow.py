@@ -79,7 +79,8 @@ async def company_naming_node(state: WorkFlowState):
     user_id = state.get("user_id")
     search_query = state.get("other")
     # 1.查 通过用户的要求和user_id查询语义数据库
-    rag_context = retrive_user_from_knowledge(user_id, search_query)
+    # Chroma/Ollama 当前为同步客户端，放入线程执行，避免阻塞 FastAPI 事件循环。
+    rag_context = await asyncio.to_thread(retrive_user_from_knowledge, user_id, search_query)
     # 2.用
     prompt = f"""你是一位精通商业品牌传播的资深顾问。请创作符合商业规范的公司名。
     [用户需求]

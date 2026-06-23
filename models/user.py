@@ -17,6 +17,7 @@ class User(Base):
     #私有化,
     _password:Mapped[str] = mapped_column(String(200))
     is_admin:Mapped[bool] = mapped_column(Boolean,default=False,server_default="0")
+    is_expert:Mapped[bool] = mapped_column(Boolean,default=False,server_default="0")
     is_frozen:Mapped[bool] = mapped_column(Boolean,default=False,server_default="0")
     is_deleted:Mapped[bool] = mapped_column(Boolean,default=False,server_default="0")
     token_version:Mapped[int] = mapped_column(Integer,default=0,server_default="0")

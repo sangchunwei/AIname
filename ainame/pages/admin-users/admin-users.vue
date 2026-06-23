@@ -5,7 +5,7 @@
         <view class="title">用户管理</view>
         <view class="summary">普通用户 {{ total }} 人</view>
       </view>
-      <button class="logout" size="mini" @click="logout">退出</button>
+      <view class="header-actions"><button class="logout" size="mini" @click="goGrowthReview">增长审核</button><button class="logout" size="mini" @click="logout">退出</button></view>
     </view>
 
     <view class="search-row">
@@ -28,6 +28,10 @@
         <button size="mini" @click="toggleFreeze(user)">{{ user.is_frozen ? '解冻' : '冻结' }}</button>
         <button size="mini" class="warning" @click="resetPassword(user)">重置密码</button>
         <button size="mini" class="danger" @click="deleteAccount(user)">删除</button>
+      </view>
+      <view class="actions extra-actions">
+        <button size="mini" @click="grantVip(user)">赠送月度 VIP</button>
+        <button size="mini" :disabled="user.is_expert" @click="verifyExpert(user)">{{ user.is_expert ? '已是专家' : '认证为专家' }}</button>
       </view>
     </view>
 
@@ -108,6 +112,17 @@ const deleteAccount = (user) => {
   });
 };
 
+const grantVip = (user) => uni.showModal({ title: '赠送月度 VIP', content: `确认给 ${user.username} 开通 30 天 VIP？`, success: async res => {
+  if (!res.confirm) return; await http.grantVip(user.id); uni.showToast({ title: 'VIP 已开通' });
+}});
+
+const verifyExpert = (user) => uni.showModal({ title: '认证专家', editable: true, placeholderText: '填写专家方向，如：国学命名', success: async res => {
+  if (!res.confirm) return; const category = res.content?.trim() || '国学命名';
+  await http.verifyExpert({ user_id: user.id, display_name: user.username, category, title: '平台认证专家', bio: `专注于${category}领域，提供 AI 辅助与人工审核相结合的专业服务。` });
+  user.is_expert = true; uni.showToast({ title: '专家认证成功' });
+}});
+
+const goGrowthReview = () => uni.navigateTo({ url: '/pages/admin-growth/admin-growth' });
 const logout = () => {
   uni.removeStorageSync('token');
   uni.removeStorageSync('admin');
@@ -132,6 +147,7 @@ onPullDownRefresh(() => {
 .title { font-size: 42rpx; font-weight: bold; color: #17202e; }
 .summary { margin-top: 8rpx; color: #7a8494; font-size: 25rpx; }
 .logout { margin: 0; color: #536174; }
+.header-actions { display: flex; gap: 10rpx; }
 .search-row { display: flex; margin-bottom: 24rpx; }
 .search { flex: 1; height: 72rpx; padding: 0 22rpx; border-radius: 12rpx; background: #fff; }
 .search-btn { width: 130rpx; margin-left: 16rpx; line-height: 72rpx; background: #3976f6; color: #fff; }
@@ -144,6 +160,7 @@ onPullDownRefresh(() => {
 .frozen { background: #fff0e5; color: #c15c10; }
 .actions { display: flex; margin-top: 24rpx; gap: 12rpx; }
 .actions button { flex: 1; margin: 0; font-size: 23rpx; }
+.extra-actions { margin-top: 14rpx; }
 .warning { color: #b86a00; }
 .danger { color: #d93025; }
 .empty { padding: 120rpx 0; text-align: center; color: #98a1af; }

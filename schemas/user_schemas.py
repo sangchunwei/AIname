@@ -11,6 +11,7 @@ class RegisterIn(BaseModel):
     confirm_password:RawPasswordStr#确认密码
     #验证用户有效性
     code:Annotated[str,Field(...,min_length=4,max_length=4)]
+    invite_code: str | None = Field(default=None, max_length=32)
 
     #完成确认密码的校验
     @model_validator(mode="after")
@@ -35,7 +36,8 @@ class LoginIn(BaseModel):
 class UserSchema(BaseModel):
     id: Annotated[int,Field(...)]
     email: EmailStr
-    username: RawUsernameStr
+    # 昵称可在个人中心修改，不再套用注册时“至少 4 位”的用户名规则。
+    username: str
 
 class LoginOut(BaseModel):
     user: UserSchema
