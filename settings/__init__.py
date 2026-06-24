@@ -37,6 +37,8 @@ def _env(name: str, default: str | None = None) -> str:
 DB_URI = _env("AINAME_MYSQL_DB_URI")
 POSTGRES_CHECKPOINT_DB_URI = _env("AINAME_POSTGRES_CHECKPOINT_DB_URI")
 REDIS_URL = os.getenv("AINAME_REDIS_URL", "redis://127.0.0.1:6379/0")
+RABBITMQ_URL = os.getenv("AINAME_RABBITMQ_URL", "amqp://guest:guest@127.0.0.1:5672/").strip()
+RABBITMQ_RAG_QUEUE = os.getenv("AINAME_RABBITMQ_RAG_QUEUE", "rag_document_queue").strip()
 OLLAMA_BASE_URL = os.getenv("AINAME_OLLAMA_BASE_URL", "http://127.0.0.1:11434").strip()
 OLLAMA_EMBED_MODEL = os.getenv("AINAME_OLLAMA_EMBED_MODEL", "nomic-embed-text").strip()
 
@@ -74,8 +76,8 @@ DEFAULT_AVATAR_PREFIX = "/default-avatars"
 
 # 仅限本地开发的模拟支付；生产环境必须保持 false。
 MOCK_PAYMENT_ENABLED = os.getenv("AINAME_MOCK_PAYMENT_ENABLED", "false").lower() == "true"
-FREE_DAILY_NAME_LIMIT = int(os.getenv("AINAME_FREE_DAILY_NAME_LIMIT", "10"))
-FREE_DAILY_VISUAL_LIMIT = int(os.getenv("AINAME_FREE_DAILY_VISUAL_LIMIT", "2"))
+FREE_WEEKLY_NAME_LIMIT = int(os.getenv("AINAME_FREE_WEEKLY_NAME_LIMIT", os.getenv("AINAME_FREE_DAILY_NAME_LIMIT", "10")))
+FREE_WEEKLY_VISUAL_LIMIT = int(os.getenv("AINAME_FREE_WEEKLY_VISUAL_LIMIT", os.getenv("AINAME_FREE_DAILY_VISUAL_LIMIT", "2")))
 
 # 本地增长与模拟资金配置
 EXPERT_PLATFORM_FEE_BPS = int(os.getenv("AINAME_EXPERT_PLATFORM_FEE_BPS", "1000"))
@@ -83,3 +85,11 @@ INVITER_REWARD_CREDITS = int(os.getenv("AINAME_INVITER_REWARD_CREDITS", "3"))
 INVITEE_REWARD_CREDITS = int(os.getenv("AINAME_INVITEE_REWARD_CREDITS", "1"))
 DEFAULT_PARTNER_COMMISSION_BPS = int(os.getenv("AINAME_DEFAULT_PARTNER_COMMISSION_BPS", "1000"))
 PUBLIC_H5_URL = os.getenv("AINAME_PUBLIC_H5_URL", "http://127.0.0.1:8080").rstrip("/")
+
+# App version update.
+APP_UPDATE_ENABLED = os.getenv("AINAME_APP_UPDATE_ENABLED", "true").lower() == "true"
+APP_LATEST_VERSION_NAME = os.getenv("AINAME_APP_LATEST_VERSION_NAME", "1.0.3").strip()
+APP_LATEST_VERSION_CODE = int(os.getenv("AINAME_APP_LATEST_VERSION_CODE", "103"))
+APP_MIN_VERSION_CODE = int(os.getenv("AINAME_APP_MIN_VERSION_CODE", "0"))
+APP_UPDATE_URL = os.getenv("AINAME_APP_UPDATE_URL", "").strip()
+APP_RELEASE_NOTES = os.getenv("AINAME_APP_RELEASE_NOTES", "").strip()

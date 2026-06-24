@@ -9,6 +9,9 @@ from routers.membership_router import router as membership_router
 from routers.community_router import router as community_router
 from routers.expert_router import router as expert_router
 from routers.growth_router import router as growth_router
+from routers.open_platform_router import router as open_platform_router
+from routers.open_api_router import router as open_api_router
+from routers.app_version_router import router as app_version_router
 
 from contextlib import asynccontextmanager
 from core.workflow import init_workflow_graph, close_workflow_graph
@@ -42,6 +45,9 @@ app.include_router(membership_router)
 app.include_router(community_router)
 app.include_router(expert_router)
 app.include_router(growth_router)
+app.include_router(open_platform_router)
+app.include_router(open_api_router)
+app.include_router(app_version_router)
 
 from pathlib import Path
 from fastapi.staticfiles import StaticFiles

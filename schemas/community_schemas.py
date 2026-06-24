@@ -18,6 +18,7 @@ class CommunityPostCreate(BaseModel):
 
 class CommentCreate(BaseModel):
     content: str = Field(..., min_length=1, max_length=1000)
+    parent_comment_id: int | None = None
 
 
 class VoteIn(BaseModel):
@@ -36,6 +37,10 @@ class CommentOut(BaseModel):
     user_id: int
     author_name: str
     content: str
+    parent_comment_id: int | None = None
+    reply_to_author: str | None = None
+    like_count: int = 0
+    liked_by_me: bool = False
     created_at: datetime
 
 

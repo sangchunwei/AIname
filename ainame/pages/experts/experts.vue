@@ -20,7 +20,9 @@ import { ref } from 'vue';import { onShow } from '@dcloudio/uni-app';import http
 const services=ref([]),selectedService=ref(null),orderForm=ref({selected_name:'',requirements:''});
 const load=async()=>services.value=await http.getExpertServices();
 const selectService=item=>selectedService.value=item;
-const submitOrder=async()=>{if(!orderForm.value.selected_name||orderForm.value.requirements.length<5)return uni.showToast({title:'请完整填写需求',icon:'none'});const order=await http.createExpertOrder({service_id:selectedService.value.id,...orderForm.value});uni.showModal({title:'确认余额支付',content:`将从钱包支付 ¥${(order.amount_cents/100).toFixed(2)}`,success:async res=>{if(res.confirm){await http.payExpertWithBalance(order.id);uni.showToast({title:'余额支付成功'})}selectedService.value=null}})};
+const goRecharge=()=>uni.navigateTo({url:'/pages/wallet-growth/wallet-growth'});
+const handlePayError=order=>uni.showModal({title:'余额不足',content:'订单已保留 10 分钟。是否前往钱包充值后继续支付？',confirmText:'去充值',cancelText:'暂不处理',success:res=>{if(res.confirm)goRecharge();else uni.showToast({title:'订单已进入待付款',icon:'none'})}});
+const submitOrder=async()=>{if(!orderForm.value.selected_name||orderForm.value.requirements.length<5)return uni.showToast({title:'请完整填写需求',icon:'none'});const order=await http.createExpertOrder({service_id:selectedService.value.id,...orderForm.value});uni.showModal({title:'确认余额支付',content:`将从钱包支付 ¥${(order.amount_cents/100).toFixed(2)}`,success:async res=>{if(res.confirm){try{await http.payExpertWithBalance(order.id);uni.showToast({title:'余额支付成功'})}catch(_){handlePayError(order)}}else{uni.showToast({title:'订单已进入待付款',icon:'none'})}selectedService.value=null;orderForm.value={selected_name:'',requirements:''}}})};
 onShow(load);
 </script>
 

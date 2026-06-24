@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -29,6 +29,7 @@ from schemas.growth_schemas import (
 
 router = APIRouter(prefix="/growth", tags=["增长、钱包与分销"])
 auth_handler = AuthHandler()
+EXPERT_PAYMENT_TIMEOUT_MINUTES = 10
 
 
 def dt(value):
@@ -51,7 +52,12 @@ async def growth_center(
         "wallet": {key: getattr(wallet, key) for key in ["available_cents", "frozen_cents", "pending_cents", "total_earned_cents", "total_withdrawn_cents", "bonus_ai_credits"]},
         "referral": referral,
         "partner": None if not partner else {"id": partner.id, "business_type": partner.business_type, "business_name": partner.business_name, "status": partner.status, "commission_bps": partner.commission_bps, "review_note": partner.review_note},
-        "ledger": [{"id": x.id, "entry_type": x.entry_type, "available_delta": x.available_delta, "description": x.description, "created_at": dt(x.created_at)} for x in ledger],
+        "ledger": [{
+            "id": x.id, "entry_type": x.entry_type,
+            "available_delta": x.available_delta, "frozen_delta": x.frozen_delta,
+            "pending_delta": x.pending_delta, "bonus_delta": x.bonus_delta,
+            "description": x.description, "created_at": dt(x.created_at),
+        } for x in ledger],
         "withdrawals": [{"id": x.id, "request_no": x.request_no, "amount_cents": x.amount_cents, "method": x.method, "status": x.status, "review_note": x.review_note, "created_at": dt(x.created_at)} for x in withdrawals],
         "commissions": [{"id": x.id, "commission_type": x.commission_type, "gross_amount_cents": x.gross_amount_cents, "platform_fee_cents": x.platform_fee_cents, "commission_cents": x.commission_cents, "status": x.status, "created_at": dt(x.created_at)} for x in commissions],
     }
@@ -148,6 +154,14 @@ async def pay_expert_with_balance(
 ):
     order = await session.scalar(select(ExpertOrder).where(ExpertOrder.id == order_id, ExpertOrder.user_id == user_id))
     if not order: raise HTTPException(status_code=404, detail="专家订单不存在")
+    if order.status == "pending_payment" and order.created_at and order.created_at <= datetime.now() - timedelta(minutes=EXPERT_PAYMENT_TIMEOUT_MINUTES):
+        order.status = "payment_timeout"
+        await session.commit()
+        raise HTTPException(status_code=400, detail="订单支付超时，已自动取消")
+    if order.status in {"payment_timeout", "canceled"}:
+        raise HTTPException(status_code=400, detail="当前订单已取消，不能继续付款")
+    if order.status != "pending_payment":
+        return {"message": "专家订单已支付"}
     if order.status == "pending_payment":
         await post_wallet_entry(session, user_id=user_id, entry_type="expert_service_purchase", available_delta=-order.amount_cents,
             reference_type="expert_order", reference_id=order.id, idempotency_key=f"wallet-expert:{order.id}", description="余额购买专家精批服务")

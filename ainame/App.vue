@@ -1,21 +1,31 @@
 <script setup>
 import { onLaunch } from '@dcloudio/uni-app';
+import { redirectToStartupTarget } from '@/utils/startup.js';
+
 onLaunch(() => {
-const admin = uni.getStorageSync('admin');
-if (admin) {
-uni.reLaunch({ url: '/pages/admin-users/admin-users' });
-return;
-}
-// 1. 应用启动时，从本地缓存中读取身份凭证 (token)
-const token = uni.getStorageSync('token');
-// 2. 如果不存在 token，说明未登录，强行拦截并跳转到登录页
-if (!token) {
-uni.reLaunch({
-url: '/pages/login/login'
-});
-}
+  // #ifndef APP-PLUS
+  redirectToStartupTarget();
+  // #endif
 });
 </script>
+
 <style>
-/* 每个页面公共css，这里暂不填 */
+/* #ifdef H5 */
+body {
+  min-height: 100vh;
+  background-color: #0f172a;
+  background-image: url('/static/launch-cover.jpg'), url('/static/launch-cover.jpg');
+  background-repeat: no-repeat, no-repeat;
+  background-position: left center, right center;
+  background-size: max(260px, calc((100vw - 750px) / 2)) 100vh, max(260px, calc((100vw - 750px) / 2)) 100vh;
+  background-attachment: fixed, fixed;
+}
+
+#app {
+  max-width: 750px;
+  min-height: 100vh;
+  margin: 0 auto;
+  background: #f5f7fa;
+}
+/* #endif */
 </style>

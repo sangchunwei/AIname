@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -22,6 +22,7 @@ from schemas.expert_schemas import (
 
 router = APIRouter(prefix="/experts", tags=["专家精批"])
 auth_handler = AuthHandler()
+PAYMENT_TIMEOUT_MINUTES = 10
 
 
 async def require_expert(
@@ -43,6 +44,29 @@ def service_output(service: ExpertService, expert: ExpertProfile):
         "name": service.name, "description": service.description,
         "price_cents": service.price_cents, "delivery_days": service.delivery_days,
     }
+
+
+def order_output(order: ExpertOrder, customer: User | None = None):
+    return {
+        "id": order.id, "order_no": order.order_no, "user_id": order.user_id,
+        "customer_username": customer.username if customer else None,
+        "customer_email": customer.email if customer else None,
+        "service_id": order.service_id, "expert_id": order.expert_id,
+        "selected_name": order.selected_name, "requirements": order.requirements,
+        "amount_cents": order.amount_cents, "status": order.status,
+        "ai_draft": order.ai_draft, "final_report": order.final_report,
+        "paid_at": order.paid_at, "delivered_at": order.delivered_at,
+        "created_at": order.created_at,
+    }
+
+
+def expire_pending_order(order: ExpertOrder) -> bool:
+    if order.status != "pending_payment":
+        return False
+    if order.created_at and order.created_at <= datetime.now() - timedelta(minutes=PAYMENT_TIMEOUT_MINUTES):
+        order.status = "payment_timeout"
+        return True
+    return False
 
 
 @router.get("/services", response_model=list[ExpertServiceOut])
@@ -102,6 +126,9 @@ async def mock_pay_expert_order(
     order = await session.scalar(select(ExpertOrder).where(ExpertOrder.id == order_id, ExpertOrder.user_id == user_id))
     if not order:
         raise HTTPException(status_code=404, detail="订单不存在")
+    if expire_pending_order(order):
+        await session.commit()
+        raise HTTPException(status_code=400, detail="订单支付超时，已自动取消")
     if order.status == "pending_payment":
         order.status = "paid"
         order.paid_at = datetime.now()
@@ -116,7 +143,34 @@ async def list_my_expert_orders(
     user_id: int = Depends(auth_handler.auth_access_dependency),
     session: AsyncSession = Depends(get_session),
 ):
-    return list((await session.scalars(select(ExpertOrder).where(ExpertOrder.user_id == user_id).order_by(ExpertOrder.id.desc()))).all())
+    orders = list((await session.scalars(select(ExpertOrder).where(ExpertOrder.user_id == user_id).order_by(ExpertOrder.id.desc()))).all())
+    expired = False
+    for order in orders:
+        expired = expire_pending_order(order) or expired
+    if expired:
+        await session.commit()
+    return orders
+
+
+@router.post("/orders/{order_id}/cancel", response_model=ExpertOrderOut)
+async def cancel_expert_order(
+    order_id: int,
+    user_id: int = Depends(auth_handler.auth_access_dependency),
+    session: AsyncSession = Depends(get_session),
+):
+    order = await session.scalar(select(ExpertOrder).where(ExpertOrder.id == order_id, ExpertOrder.user_id == user_id))
+    if not order:
+        raise HTTPException(status_code=404, detail="订单不存在")
+    if expire_pending_order(order):
+        await session.commit()
+        await session.refresh(order)
+        return order
+    if order.status != "pending_payment":
+        raise HTTPException(status_code=400, detail="当前订单状态不允许取消")
+    order.status = "canceled"
+    await session.commit()
+    await session.refresh(order)
+    return order
 
 
 @router.get("/workbench/orders", response_model=list[ExpertOrderOut])
@@ -124,9 +178,15 @@ async def list_expert_workbench_orders(
     expert: ExpertProfile = Depends(require_expert),
     session: AsyncSession = Depends(get_session),
 ):
-    return list((await session.scalars(
-        select(ExpertOrder).where(ExpertOrder.expert_id == expert.id, ExpertOrder.status != "pending_payment").order_by(ExpertOrder.id.desc())
-    )).all())
+    rows = (
+        await session.execute(
+            select(ExpertOrder, User)
+            .join(User, User.id == ExpertOrder.user_id)
+            .where(ExpertOrder.expert_id == expert.id, ExpertOrder.status != "pending_payment")
+            .order_by(ExpertOrder.id.desc())
+        )
+    ).all()
+    return [order_output(order, customer) for order, customer in rows]
 
 
 @router.post("/workbench/orders/{order_id}/ai-draft", response_model=ExpertOrderOut)
@@ -153,7 +213,9 @@ async def deliver_expert_report(
     session: AsyncSession = Depends(get_session),
 ):
     order = await session.scalar(select(ExpertOrder).where(ExpertOrder.id == order_id, ExpertOrder.expert_id == expert.id))
-    if not order or order.status == "pending_payment":
+    if not order:
+        raise HTTPException(status_code=404, detail="订单不存在")
+    if order.status == "pending_payment" or not order.paid_at:
         raise HTTPException(status_code=400, detail="订单状态不允许交付")
     if order.status == "delivered":
         return order

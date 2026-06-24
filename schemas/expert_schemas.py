@@ -42,6 +42,9 @@ class ExpertOrderOut(BaseModel):
 
     id: int
     order_no: str
+    user_id: int
+    customer_username: str | None = None
+    customer_email: str | None = None
     service_id: int
     expert_id: int
     selected_name: str

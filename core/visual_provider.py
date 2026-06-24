@@ -1,7 +1,9 @@
 import base64
 import html
+import asyncio
 from pathlib import Path
 from uuid import uuid4
+from urllib.parse import urlparse
 
 import httpx
 
@@ -82,12 +84,23 @@ class OpenAICompatibleVisualProvider:
             "response_format": "b64_json",
         }
         headers = {"Authorization": f"Bearer {settings.IMAGE_API_KEY}"}
-        async with httpx.AsyncClient(timeout=settings.IMAGE_API_TIMEOUT) as client:
-            response = await client.post(settings.IMAGE_API_URL, json=payload, headers=headers)
-            response.raise_for_status()
-            items = response.json().get("data", [])
+        async with httpx.AsyncClient(timeout=settings.IMAGE_API_TIMEOUT, trust_env=False) as client:
+            try:
+                response = await client.post(settings.IMAGE_API_URL, json=payload, headers=headers)
+                response.raise_for_status()
+            except httpx.HTTPStatusError as exc:
+                body = exc.response.text[:500] if exc.response is not None else ""
+                status_code = exc.response.status_code if exc.response is not None else "unknown"
+                raise VisualProviderError(f"图像服务 HTTP {status_code}: {body}") from exc
+            except httpx.RequestError as exc:
+                raise VisualProviderError(f"图像服务请求失败: {type(exc).__name__}: {exc}") from exc
+            try:
+                response_data = response.json()
+            except ValueError as exc:
+                raise VisualProviderError(f"图像服务返回的不是 JSON: {response.text[:500]}") from exc
+            items = response_data.get("data", [])
             if not items:
-                raise VisualProviderError("图像服务没有返回任何图片")
+                raise VisualProviderError(f"图像服务没有返回任何图片: {str(response_data)[:500]}")
 
             output_dir = Path(settings.GENERATED_ASSET_DIR)
             output_dir.mkdir(parents=True, exist_ok=True)
@@ -111,9 +124,189 @@ class OpenAICompatibleVisualProvider:
         return files
 
 
+class DashScopeVisualProvider:
+    """Aliyun DashScope/Model Studio text-to-image provider."""
+
+    name = "dashscope"
+
+    def _base_api_url(self) -> str:
+        configured = settings.IMAGE_API_URL.strip()
+        if not configured:
+            return "https://dashscope.aliyuncs.com/api/v1"
+        if "/api/v1/" in configured:
+            return configured.split("/api/v1/", 1)[0].rstrip("/") + "/api/v1"
+        parsed = urlparse(configured)
+        if parsed.scheme and parsed.netloc:
+            return f"{parsed.scheme}://{parsed.netloc}/api/v1"
+        return "https://dashscope.aliyuncs.com/api/v1"
+
+    @staticmethod
+    def _dashscope_size() -> str:
+        return settings.IMAGE_SIZE.replace("x", "*")
+
+    @staticmethod
+    def _uses_legacy_protocol() -> bool:
+        model = settings.IMAGE_MODEL.lower()
+        legacy_prefixes = ("wanx2.", "wan2.0", "wan2.1", "wan2.2", "wan2.5")
+        return model.startswith(legacy_prefixes)
+
+    @staticmethod
+    def _trim_prompt_for_model(prompt: str) -> str:
+        model = settings.IMAGE_MODEL.lower()
+        if model.startswith(("wanx2.1", "wan2.1", "wan2.2")):
+            return prompt[:500]
+        if model.startswith(("wan2.5",)):
+            return prompt[:2000]
+        return prompt[:2100]
+
+    def _generation_endpoint(self) -> str:
+        if self._uses_legacy_protocol():
+            return f"{self._base_api_url()}/services/aigc/text2image/image-synthesis"
+        return f"{self._base_api_url()}/services/aigc/image-generation/generation"
+
+    def _payload(self, prompt: str, count: int) -> dict:
+        clean_prompt = self._trim_prompt_for_model(prompt)
+        parameters = {
+            "size": self._dashscope_size(),
+            "n": count,
+            "watermark": False,
+        }
+        if self._uses_legacy_protocol():
+            return {
+                "model": settings.IMAGE_MODEL,
+                "input": {"prompt": clean_prompt},
+                "parameters": parameters,
+            }
+
+        parameters["prompt_extend"] = True
+        return {
+            "model": settings.IMAGE_MODEL,
+            "input": {
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": [{"text": clean_prompt}],
+                    }
+                ]
+            },
+            "parameters": parameters,
+        }
+
+    async def _submit_task(self, client: httpx.AsyncClient, prompt: str, count: int) -> str:
+        payload = self._payload(prompt, count)
+        headers = {
+            "Authorization": f"Bearer {settings.IMAGE_API_KEY}",
+            "Content-Type": "application/json",
+            "X-DashScope-Async": "enable",
+        }
+        response = await client.post(
+            self._generation_endpoint(),
+            json=payload,
+            headers=headers,
+        )
+        response_data = self._json_or_raise(response, "DashScope 创建任务")
+        if response.status_code >= 400:
+            raise VisualProviderError(self._error_text("DashScope 创建任务失败", response.status_code, response_data))
+        task_id = (response_data.get("output") or {}).get("task_id")
+        if not task_id:
+            raise VisualProviderError(f"DashScope 没有返回 task_id: {str(response_data)[:500]}")
+        return task_id
+
+    async def _wait_task(self, client: httpx.AsyncClient, task_id: str) -> dict:
+        headers = {"Authorization": f"Bearer {settings.IMAGE_API_KEY}"}
+        max_attempts = max(1, int(settings.IMAGE_API_TIMEOUT // 2))
+        last_payload = None
+        for _ in range(max_attempts):
+            response = await client.get(f"{self._base_api_url()}/tasks/{task_id}", headers=headers)
+            response_data = self._json_or_raise(response, "DashScope 查询任务")
+            last_payload = response_data
+            if response.status_code >= 400:
+                raise VisualProviderError(self._error_text("DashScope 查询任务失败", response.status_code, response_data))
+            output = response_data.get("output") or {}
+            status = output.get("task_status")
+            if status == "SUCCEEDED":
+                return response_data
+            if status in {"FAILED", "UNKNOWN"}:
+                raise VisualProviderError(self._error_text(f"DashScope 任务{status}", response.status_code, response_data))
+            await asyncio.sleep(2)
+        raise VisualProviderError(f"DashScope 任务超时: task_id={task_id}, last={str(last_payload)[:500]}")
+
+    @staticmethod
+    def _json_or_raise(response: httpx.Response, label: str) -> dict:
+        try:
+            return response.json()
+        except ValueError as exc:
+            raise VisualProviderError(f"{label}返回的不是 JSON: HTTP {response.status_code}: {response.text[:500]}") from exc
+
+    @staticmethod
+    def _error_text(prefix: str, status_code: int, payload: dict) -> str:
+        code = payload.get("code") or ""
+        message = payload.get("message") or ""
+        return f"{prefix}: HTTP {status_code} {code} {message} {str(payload)[:500]}"
+
+    @staticmethod
+    def _extract_image_urls(payload: dict) -> list[str]:
+        urls = []
+        output = payload.get("output") or {}
+        results = output.get("results") or []
+        for item in results:
+            image_url = item.get("url")
+            if image_url:
+                urls.append(image_url)
+
+        choices = output.get("choices") or []
+        for choice in choices:
+            content = (((choice.get("message") or {}).get("content")) or [])
+            for item in content:
+                image_url = item.get("image")
+                if image_url:
+                    urls.append(image_url)
+        return urls
+
+    async def generate(self, *, prompt: str, count: int, asset_type: str, brand_name: str, slogan: str | None):
+        if not settings.IMAGE_API_KEY:
+            raise VisualProviderError("尚未配置 DashScope API Key")
+
+        output_dir = Path(settings.GENERATED_ASSET_DIR)
+        output_dir.mkdir(parents=True, exist_ok=True)
+        async with httpx.AsyncClient(timeout=settings.IMAGE_API_TIMEOUT, trust_env=False) as client:
+            try:
+                task_id = await self._submit_task(client, prompt, count)
+                result_payload = await self._wait_task(client, task_id)
+            except httpx.RequestError as exc:
+                raise VisualProviderError(f"DashScope 请求失败: {type(exc).__name__}: {exc}") from exc
+
+            image_urls = self._extract_image_urls(result_payload)
+            if not image_urls:
+                raise VisualProviderError(f"DashScope 任务成功但没有图片 URL: {str(result_payload)[:500]}")
+
+            files = []
+            for image_url in image_urls:
+                try:
+                    image_response = await client.get(image_url)
+                    image_response.raise_for_status()
+                except httpx.RequestError as exc:
+                    raise VisualProviderError(
+                        f"DashScope 图片下载失败: {type(exc).__name__}: {exc}; url={image_url[:160]}"
+                    ) from exc
+                except httpx.HTTPStatusError as exc:
+                    status_code = exc.response.status_code if exc.response is not None else "unknown"
+                    raise VisualProviderError(
+                        f"DashScope 图片下载 HTTP {status_code}: url={image_url[:160]}"
+                    ) from exc
+                content_type = image_response.headers.get("content-type", "")
+                suffix = ".jpg" if "jpeg" in content_type else ".png"
+                filename = f"{uuid4().hex}{suffix}"
+                (output_dir / filename).write_bytes(image_response.content)
+                files.append(f"{settings.PUBLIC_ASSET_PREFIX}/{filename}")
+        return files
+
+
 def get_visual_provider():
     if settings.IMAGE_PROVIDER == "mock":
         return MockVisualProvider()
+    if settings.IMAGE_PROVIDER in {"dashscope", "aliyun_dashscope"} or "dashscope.aliyuncs.com" in settings.IMAGE_API_URL:
+        return DashScopeVisualProvider()
     if settings.IMAGE_PROVIDER == "openai_compatible":
         return OpenAICompatibleVisualProvider()
     raise VisualProviderError(f"不支持的图像提供器：{settings.IMAGE_PROVIDER}")

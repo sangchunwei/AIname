@@ -10,6 +10,11 @@ from models.growth import WalletAccount
 from core.wallet_service import post_wallet_entry
 
 
+def current_quota_period_start() -> date:
+    today = date.today()
+    return today - timedelta(days=today.weekday())
+
+
 async def get_active_membership(session: AsyncSession, user_id: int):
     now = datetime.now()
     row = (
@@ -33,14 +38,15 @@ async def get_limits(session: AsyncSession, user_id: int) -> tuple[int, int, obj
     if membership:
         subscription, plan = membership
         return plan.daily_name_limit, plan.daily_visual_limit, (subscription, plan)
-    return settings.FREE_DAILY_NAME_LIMIT, settings.FREE_DAILY_VISUAL_LIMIT, None
+    return settings.FREE_WEEKLY_NAME_LIMIT, settings.FREE_WEEKLY_VISUAL_LIMIT, None
 
 
 async def get_used(session: AsyncSession, user_id: int, action: str) -> int:
+    period_start = current_quota_period_start()
     counter = await session.scalar(
         select(UsageCounter).where(
             UsageCounter.user_id == user_id,
-            UsageCounter.usage_date == date.today(),
+            UsageCounter.usage_date == period_start,
             UsageCounter.action == action,
         )
     )
@@ -56,16 +62,17 @@ async def ensure_quota(session: AsyncSession, user_id: int, action: str) -> None
             wallet = await session.scalar(select(WalletAccount).where(WalletAccount.user_id == user_id))
             if wallet and wallet.bonus_ai_credits > 0:
                 return
-        raise HTTPException(status_code=429, detail="今日额度已用完，升级 VIP 或邀请好友可获得更多额度")
+        raise HTTPException(status_code=429, detail="本周额度已用完，升级 VIP 或邀请好友可获得更多额度")
 
 
 async def consume_quota(session: AsyncSession, user_id: int, action: str) -> None:
     name_limit, visual_limit, _ = await get_limits(session, user_id)
     limit = name_limit if action == "name_generation" else visual_limit
+    period_start = current_quota_period_start()
     counter = await session.scalar(
         select(UsageCounter).where(
             UsageCounter.user_id == user_id,
-            UsageCounter.usage_date == date.today(),
+            UsageCounter.usage_date == period_start,
             UsageCounter.action == action,
         )
     )
@@ -77,7 +84,7 @@ async def consume_quota(session: AsyncSession, user_id: int, action: str) -> Non
     elif counter:
         counter.used_count += 1
     else:
-        session.add(UsageCounter(user_id=user_id, usage_date=date.today(), action=action, used_count=1))
+        session.add(UsageCounter(user_id=user_id, usage_date=period_start, action=action, used_count=1))
     await session.commit()
 
 

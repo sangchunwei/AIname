@@ -1,7 +1,23 @@
 // http/http.js
 
 // 动态获取环境：开发模式连接本地后端，发行模式连接线上域名
-const BASE_URL = "http://127.0.0.1:8000";
+const BASE_URL = "http://192.168.151.21:8000";
+
+const isAuthExpiredError = (statusCode, message) => {
+  if (![401, 403].includes(statusCode)) return false;
+  const text = String(message || '');
+  return ['Token', 'token', '签名', '过期', '登录状态', 'Not authenticated', '认证', '未登录']
+    .some(keyword => text.includes(keyword));
+};
+
+const clearAuthAndGoLogin = () => {
+  uni.removeStorageSync('token');
+  uni.removeStorageSync('admin');
+  uni.showToast({ title: '登录状态已失效，请重新登录', icon: 'none', duration: 1800 });
+  setTimeout(() => {
+    uni.reLaunch({ url: '/pages/login/login' });
+  }, 500);
+};
 
 /**
  * 核心请求封装函数
@@ -33,6 +49,12 @@ const request = (url, options) => {
           } else if (res.data && typeof res.data.detail === 'string') {
             // 捕获我们自定义的 HttpException 错误 (String 格式)
             errorMsg = res.data.detail;
+          }
+
+          if (isAuthExpiredError(res.statusCode, errorMsg)) {
+            clearAuthAndGoLogin();
+            reject(res.data);
+            return;
           }
           
           // 确保 title 绝对是字符串，防止前端崩溃红屏
@@ -80,6 +102,11 @@ const uploadFile = (url, filePath) => {
           const errorMsg = responseData && responseData.detail
             ? responseData.detail
             : '文件上传失败';
+          if (isAuthExpiredError(res.statusCode, errorMsg)) {
+            clearAuthAndGoLogin();
+            reject(responseData || res);
+            return;
+          }
           uni.showToast({ title: String(errorMsg), icon: 'none', duration: 3000 });
           reject(responseData || res);
         }
@@ -98,6 +125,8 @@ export default {
   getEmailCode: (email) => request("/auth/code?email=" + email, { method: 'GET' }),
   register: (data) => request("/auth/register", { method: 'POST', data }),
   login: (data) => request("/auth/login", { method: 'POST', data }),
+  checkAppVersion: ({ platform, versionCode }) =>
+    request(`/app/version?platform=${encodeURIComponent(platform || 'app')}&version_code=${Number(versionCode || 0)}`, { method: 'GET' }),
 
   // ================= 管理员接口 =================
   adminLogin: (data) => request("/admin/login", { method: 'POST', data }),
@@ -146,14 +175,19 @@ export default {
   getCommunityPosts: (postType = '') => request(`/community/posts${postType ? `?post_type=${postType}` : ''}`, { method: 'GET' }),
   createCommunityPost: (data) => request('/community/posts', { method: 'POST', data }),
   likeCommunityPost: (postId) => request(`/community/posts/${postId}/like`, { method: 'POST' }),
-  commentCommunityPost: (postId, content) => request(`/community/posts/${postId}/comments`, { method: 'POST', data: { content } }),
+  commentCommunityPost: (postId, content, parentCommentId = null) => request(`/community/posts/${postId}/comments`, {
+    method: 'POST', data: { content, parent_comment_id: parentCommentId }
+  }),
+  likeCommunityComment: (commentId) => request(`/community/comments/${commentId}/like`, { method: 'POST' }),
   voteCommunityPoll: (postId, optionId) => request(`/community/posts/${postId}/vote`, { method: 'POST', data: { option_id: optionId } }),
+  cancelCommunityVote: (postId) => request(`/community/posts/${postId}/vote`, { method: 'DELETE' }),
 
   // ================= 7. 专家精批 =================
   getExpertServices: () => request('/experts/services', { method: 'GET' }),
   createExpertOrder: (data) => request('/experts/orders', { method: 'POST', data }),
   mockPayExpertOrder: (orderId) => request(`/experts/orders/${orderId}/mock-pay`, { method: 'POST' }),
   getExpertOrders: () => request('/experts/orders', { method: 'GET' }),
+  cancelExpertOrder: (orderId) => request(`/experts/orders/${orderId}/cancel`, { method: 'POST' }),
   getExpertWorkbenchOrders: () => request('/experts/workbench/orders', { method: 'GET' }),
   createExpertService: (data) => request('/experts/workbench/services', { method: 'POST', data }),
   generateExpertDraft: (orderId) => request(`/experts/workbench/orders/${orderId}/ai-draft`, { method: 'POST' }),
@@ -170,5 +204,18 @@ export default {
   getGrowthReviews: () => request('/growth/admin/review', { method: 'GET' }),
   reviewWithdrawal: (id, approved, note = '') => request(`/growth/admin/withdrawals/${id}/review`, { method: 'POST', data: { approved, note } }),
   reviewPartner: (id, approved, commissionBps = 1000, note = '') => request(`/growth/admin/partners/${id}/review`, { method: 'POST', data: { approved, commission_bps: commissionBps, note } }),
-  settleCommission: (id) => request(`/growth/admin/commissions/${id}/settle`, { method: 'POST' })
+  settleCommission: (id) => request(`/growth/admin/commissions/${id}/settle`, { method: 'POST' }),
+
+  // ================= 9. Developer Open Platform =================
+  getDeveloperApps: () => request('/developers/apps', { method: 'GET' }),
+  createDeveloperApp: (name) => request('/developers/apps', { method: 'POST', data: { name } }),
+  getDeveloperKeys: (appId) => request(`/developers/apps/${appId}/keys`, { method: 'GET' }),
+  createDeveloperKey: (appId, name = '默认 API 密钥') => request(`/developers/apps/${appId}/keys`, { method: 'POST', data: { name } }),
+  renameDeveloperKey: (keyId, name) => request(`/developers/keys/${keyId}`, { method: 'PATCH', data: { name } }),
+  disableDeveloperKey: (keyId) => request(`/developers/keys/${keyId}/disable`, { method: 'PATCH' }),
+  enableDeveloperKey: (keyId) => request(`/developers/keys/${keyId}/enable`, { method: 'PATCH' }),
+  deleteDeveloperKey: (keyId) => request(`/developers/keys/${keyId}`, { method: 'DELETE' }),
+  deleteDeveloperApp: (appId) => request(`/developers/apps/${appId}`, { method: 'DELETE' }),
+  getDeveloperUsage: (appId, limit = 50) => request(`/developers/apps/${appId}/usage?limit=${limit}`, { method: 'GET' }),
+  demoRechargeDeveloperApp: (appId) => request(`/developers/apps/${appId}/demo-recharge`, { method: 'POST' })
 };

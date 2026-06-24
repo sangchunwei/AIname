@@ -27,9 +27,11 @@ class CommunityComment(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     post_id: Mapped[int] = mapped_column(ForeignKey("community_post.id"), index=True)
+    parent_comment_id: Mapped[int | None] = mapped_column(ForeignKey("community_comment.id"), nullable=True, index=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("user.id"), index=True)
     content: Mapped[str] = mapped_column(Text)
     status: Mapped[str] = mapped_column(String(30), default="published")
+    like_count: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
 
 
@@ -39,6 +41,16 @@ class CommunityLike(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     post_id: Mapped[int] = mapped_column(ForeignKey("community_post.id"), index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("user.id"), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
+
+
+class CommunityCommentLike(Base):
+    __tablename__ = "community_comment_like"
+    __table_args__ = (UniqueConstraint("comment_id", "user_id", name="uq_community_comment_like_comment_user"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    comment_id: Mapped[int] = mapped_column(ForeignKey("community_comment.id"), index=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("user.id"), index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
 

@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.auth import AuthHandler
 from dependencies import get_session
-from models.community import CommunityComment, CommunityLike, CommunityPost, NamePollOption, NamePollVote
+from models.community import CommunityComment, CommunityCommentLike, CommunityLike, CommunityPost, NamePollOption, NamePollVote
 from models.user import User
 from schemas.community_schemas import (
     CommentCreate, CommunityPostCreate, CommunityPostListOut, CommunityPostOut, VoteIn,
@@ -45,11 +45,26 @@ async def serialize_post(post: CommunityPost, user_id: int, session: AsyncSessio
                 .order_by(CommunityComment.id)
             )
         ).all()
-        comments_out = [
-            {"id": comment.id, "user_id": comment.user_id, "author_name": username,
-             "content": comment.content, "created_at": comment.created_at}
-            for comment, username in rows
-        ]
+        comment_author_by_id = {comment.id: username for comment, username in rows}
+        comments_out = []
+        for comment, username in rows:
+            liked_comment = await session.scalar(
+                select(CommunityCommentLike.id).where(
+                    CommunityCommentLike.comment_id == comment.id,
+                    CommunityCommentLike.user_id == user_id,
+                )
+            )
+            comments_out.append({
+                "id": comment.id,
+                "user_id": comment.user_id,
+                "author_name": username,
+                "content": comment.content,
+                "parent_comment_id": comment.parent_comment_id,
+                "reply_to_author": comment_author_by_id.get(comment.parent_comment_id),
+                "like_count": comment.like_count,
+                "liked_by_me": bool(liked_comment),
+                "created_at": comment.created_at,
+            })
     return {
         "id": post.id, "user_id": post.user_id,
         "author_name": author.username if author else "已注销用户",
@@ -98,7 +113,7 @@ async def list_posts(
         .offset((page - 1) * page_size).limit(page_size)
     )).all())
     return {"total": total or 0, "page": page, "page_size": page_size,
-            "posts": [await serialize_post(post, user_id, session) for post in posts]}
+            "posts": [await serialize_post(post, user_id, session, True) for post in posts]}
 
 
 @router.get("/posts/{post_id}", response_model=CommunityPostOut)
@@ -138,11 +153,55 @@ async def create_comment(
     session: AsyncSession = Depends(get_session),
 ):
     post = await get_post_or_404(post_id, session)
-    comment = CommunityComment(post_id=post_id, user_id=user_id, content=data.content)
+    if data.parent_comment_id is not None:
+        parent = await session.scalar(
+            select(CommunityComment).where(
+                CommunityComment.id == data.parent_comment_id,
+                CommunityComment.post_id == post_id,
+                CommunityComment.status == "published",
+            )
+        )
+        if not parent:
+            raise HTTPException(status_code=404, detail="回复的评论不存在")
+    comment = CommunityComment(
+        post_id=post_id,
+        parent_comment_id=data.parent_comment_id,
+        user_id=user_id,
+        content=data.content,
+    )
     session.add(comment)
     post.comment_count += 1
     await session.commit()
     return {"message": "评论成功"}
+
+
+@router.post("/comments/{comment_id}/like")
+async def toggle_comment_like(
+    comment_id: int,
+    user_id: int = Depends(auth_handler.auth_access_dependency),
+    session: AsyncSession = Depends(get_session),
+):
+    comment = await session.scalar(
+        select(CommunityComment).where(CommunityComment.id == comment_id, CommunityComment.status == "published")
+    )
+    if not comment:
+        raise HTTPException(status_code=404, detail="评论不存在")
+    liked = await session.scalar(
+        select(CommunityCommentLike).where(
+            CommunityCommentLike.comment_id == comment_id,
+            CommunityCommentLike.user_id == user_id,
+        )
+    )
+    if liked:
+        await session.delete(liked)
+        comment.like_count = max(0, comment.like_count - 1)
+        active = False
+    else:
+        session.add(CommunityCommentLike(comment_id=comment_id, user_id=user_id))
+        comment.like_count += 1
+        active = True
+    await session.commit()
+    return {"liked": active, "like_count": comment.like_count}
 
 
 @router.post("/posts/{post_id}/vote")
@@ -172,6 +231,29 @@ async def vote_poll(
     option.vote_count += 1
     await session.commit()
     return {"message": "投票成功", "option_id": option.id}
+
+
+@router.delete("/posts/{post_id}/vote")
+async def cancel_vote_poll(
+    post_id: int,
+    user_id: int = Depends(auth_handler.auth_access_dependency),
+    session: AsyncSession = Depends(get_session),
+):
+    post = await get_post_or_404(post_id, session)
+    if post.post_type != "name_poll":
+        raise HTTPException(status_code=400, detail="该帖子不是名字投票")
+    vote = await session.scalar(
+        select(NamePollVote).where(NamePollVote.post_id == post_id, NamePollVote.user_id == user_id)
+    )
+    if not vote:
+        return {"message": "当前没有投票记录", "option_id": None}
+    option = await session.scalar(select(NamePollOption).where(NamePollOption.id == vote.option_id))
+    if option:
+        option.vote_count = max(0, option.vote_count - 1)
+    post.vote_count = max(0, post.vote_count - 1)
+    await session.delete(vote)
+    await session.commit()
+    return {"message": "已取消投票", "option_id": None}
 
 
 @router.delete("/posts/{post_id}")

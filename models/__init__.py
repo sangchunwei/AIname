@@ -52,3 +52,4 @@ from . import membership
 from . import community
 from . import expert
 from . import growth
+from . import open_platform

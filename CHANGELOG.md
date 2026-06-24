@@ -1,5 +1,103 @@
 # Changelog
 
+## [1.0.3] - 2026-06-23
+
+版本更新：在 1.0.2 的品牌视觉、VIP、社区、专家服务、钱包和分销体系基础上，新增 B 端开放平台、App 启动页与版本检测，并完善社区回复、专家订单、RAG 后台任务和图像接口错误提示。
+
+### B 端开放平台
+
+- 新增开发者应用管理，登录用户可创建自己的开放平台应用。
+- 新增 API 密钥管理，支持创建、重命名、启用、停用和删除。
+- API 密钥采用哈希存储，完整密钥只在创建时返回一次。
+- 新增演示调用额度、额度扣减、本地演示充值和用量统计。
+- 新增开放命名 API：
+  - `POST /open/v1/names/game-npc`
+  - `POST /open/v1/names/novel-character`
+  - `POST /open/v1/names/novel-place`
+- 新增调用日志，记录 request_id、端点、状态、扣费次数、响应数量、耗时、请求摘要和错误信息。
+- 前端新增“B 端开放平台”页面，并从个人中心提供入口。
+
+### App 启动页与版本更新
+
+- 新增 Android App 启动页，支持本地封面图、倒计时和跳过。
+- 手机端启动封面倒计时由 5 秒调整为 3 秒。
+- H5 环境自动跳过启动页。
+- 新增启动目标判断，按管理员、已登录用户、未登录用户进入不同页面。
+- 新增账号设置页的版本展示和更新检测入口。
+- 后端新增 `/app/version` 接口，支持最新版本、强制更新、下载地址和更新说明。
+- Android 端支持下载 APK 并触发安装更新；其他环境会打开更新地址或复制链接。
+
+### 社区互动
+
+- 评论支持父级回复关系。
+- 新增楼中楼回复展示、评论预览、展开/收起回复。
+- 新增评论点赞和取消点赞。
+- 新增 `community_comment_like` 表及唯一约束，避免同一用户重复点赞同一评论。
+
+### 专家服务
+
+- 专家工作台升级为订单列表、状态筛选、订单详情和发布服务分区。
+- 订单列表新增客户信息、金额、创建时间和状态展示。
+- 订单详情集中展示用户需求、AI 初稿和最终报告编辑区。
+- 新增待支付订单超时处理。
+- 新增用户取消未支付专家订单。
+- 余额支付专家订单时增加超时、取消、重复支付校验。
+- 交付报告后更新当前订单状态，减少重复刷新和误操作。
+
+### 钱包与增长
+
+- 钱包中心流水展示补充冻结余额、待结算余额和奖励次数变化。
+- 方便追踪专家收入、平台服务费、分销佣金和邀请奖励。
+
+### RAG 知识库
+
+- 知识库上传接口改为投递 RabbitMQ 队列任务。
+- 新增 `rag_worker.py` 后台消费者，用于文档解析、向量化和入库。
+- 上传请求无需等待完整知识库构建完成。
+- RabbitMQ 连接从代码硬编码迁移到 `.env` 配置，后端和 Worker 统一读取 `AINAME_RABBITMQ_URL` 与 `AINAME_RABBITMQ_RAG_QUEUE`。
+- `requirements.txt` 补充 `aio-pika` 依赖声明，避免新环境按依赖文件安装后缺少 RabbitMQ 客户端。
+
+### 品牌视觉与工程稳定性
+
+- 新增 DashScope 真实图像生成提供器，使用官方异步任务接口创建、轮询并下载图片结果。
+- OpenAI-compatible 图像提供器增强错误处理。
+- HTTP 错误会暴露状态码和部分响应内容。
+- 请求异常、非 JSON 返回、空图片结果会给出更明确的排查信息。
+- `main.py` 挂载 App 版本路由、开放平台路由和开放 API 路由。
+
+### 数据库迁移
+
+- 新增 `f2b6c9a1d034`：开放平台开发者应用、API 密钥和调用日志。
+- 新增 `a41c8e72b905`：社区评论回复和评论点赞。
+- 当前最新 Alembic 版本：`a41c8e72b905`。
+
+### 升级说明
+
+```powershell
+D:\Anaconda3\envs\fastapi-env\python.exe -m pip install -r requirements.txt
+D:\Anaconda3\envs\fastapi-env\python.exe -m alembic upgrade head
+D:\Anaconda3\envs\fastapi-env\python.exe run.py
+```
+
+如需测试 RAG 异步入库：
+
+```powershell
+D:\Anaconda3\envs\fastapi-env\python.exe rag_worker.py
+```
+
+建议同步配置：
+
+```env
+AINAME_APP_UPDATE_ENABLED=true
+AINAME_APP_LATEST_VERSION_NAME=1.0.3
+AINAME_APP_LATEST_VERSION_CODE=103
+AINAME_APP_MIN_VERSION_CODE=0
+AINAME_APP_UPDATE_URL=
+AINAME_APP_RELEASE_NOTES=AIName 1.0.3 新增开放平台、版本检测、启动页和社区/专家体验优化。
+```
+
+> 本次文档按 1.0.3 整理；`ainame/manifest.json`、`ainame/utils/app-version.js`、`.env.example` 和后端默认版本配置已同步为 `1.0.3/103`。
+
 ## [1.0.2] - 2026-06-22
 
 版本更新：围绕企业起名结果补齐“一键品牌冷启动”链路，并扩展用户运营、真人服务、社区互动、增长分销和个人资料能力。
@@ -8,12 +106,13 @@
 
 - 新增品牌项目、品牌定位、视觉关键词和 Slogan 生成功能。
 - 新增 Logo 概念图与名片排版任务，使用 Redis 执行异步视觉任务并保存生成素材。
-- 提供 `mock` 本地 SVG 视觉提供器和可替换的 OpenAI-compatible 图像接口结构；当前默认仍为 Mock，不代表已经接入正式付费图片模型。
+- 提供 `mock` 本地 SVG 视觉提供器、DashScope 真实图像生成提供器和可替换的 OpenAI-compatible 图像接口结构；当前默认仍为 Mock，配置 DashScope 后可生成真实图片。
 - 优化企业知识库 RAG：Ollama 请求隔离系统代理，检索异常时自动降级，避免影响核心起名流程。
 
 ### 用户、VIP 与账号安全
 
-- 新增用户中心，展示账号资料、VIP 状态、到期时间及每日起名/视觉额度。
+- 新增用户中心，展示账号资料、VIP 状态、到期时间及每周起名/视觉额度。
+- 起名和视觉生成额度从每日结算调整为每 7 天结算一次，额度总数保持不变。
 - 新增月度、年度 VIP 套餐、订单和管理员赠送 VIP 能力。
 - 新增昵称、个人简介和密码修改；密码修改后旧 Token 自动失效。
 - 新增自定义头像上传：支持 JPEG、PNG、WebP，最大 5 MB，服务端纠正 EXIF 方向并裁剪为 512×512 JPEG。
@@ -37,15 +136,5 @@
 
 - 管理员端支持隐藏入口、独立登录、用户搜索、冻结/解冻、重置密码、软删除、VIP 赠送、专家认证以及增长业务审核。
 - 敏感配置统一从不提交 Git 的 `.env` 读取，并提供 `.env.example` 模板。
-- 新增品牌视觉、会员社区专家、增长钱包三组 Alembic 迁移；最新版本为 `e9a4c72d8f10`。
+- 新增品牌视觉、会员社区专家、增长钱包三组 Alembic 迁移；1.0.2 最新版本为 `e9a4c72d8f10`。
 - `generated/` 保存本地生成素材和用户头像并被 Git 忽略；6 个固定头像位于可提交的 `static/default-avatars/`。
-
-### 升级说明
-
-```powershell
-D:\Anaconda3\envs\fastapi-env\python.exe -m pip install -r requirements.txt
-D:\Anaconda3\envs\fastapi-env\python.exe -m alembic upgrade head
-D:\Anaconda3\envs\fastapi-env\python.exe run.py
-```
-
-前端需在 HBuilderX 中重新运行到 H5 或 Android。升级前请确认 `.env` 已补充新增配置，且生产环境保持 `AINAME_MOCK_PAYMENT_ENABLED=false`。

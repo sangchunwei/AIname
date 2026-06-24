@@ -1,6 +1,13 @@
 {
   "pages": [
     {
+      "path": "pages/splash/splash",
+      "style": {
+        "navigationStyle": "custom",
+        "disableScroll": true
+      }
+    },
+    {
       "path": "pages/index/index",
       "style": { "navigationBarTitleText": "AI 智能起名" }
     },
@@ -55,6 +62,10 @@
     {
       "path": "pages/expert-workbench/expert-workbench",
       "style": { "navigationBarTitleText": "专家工作台", "enablePullDownRefresh": true }
+    },
+    {
+      "path": "pages/developer-dashboard/developer-dashboard",
+      "style": { "navigationBarTitleText": "B 端开放平台" }
     },
     {
       "path": "pages/admin-growth/admin-growth",
