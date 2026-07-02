@@ -1,6 +1,6 @@
 """项目统一配置入口，优先读取操作系统环境变量，其次读取本地 .env。"""
 import os
-from datetime import timedelta
+from datetime import datetime, timedelta
 from pathlib import Path
 
 
@@ -31,6 +31,10 @@ def _env(name: str, default: str | None = None) -> str:
     if value is None or not value.strip() or "REPLACE_ME" in value:
         raise RuntimeError(f"缺少必要配置：{name}，请填写项目根目录的 .env 文件")
     return value.strip()
+
+
+def now_string() -> str:
+    return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 
 # 数据库与基础设施
@@ -86,10 +90,17 @@ INVITEE_REWARD_CREDITS = int(os.getenv("AINAME_INVITEE_REWARD_CREDITS", "1"))
 DEFAULT_PARTNER_COMMISSION_BPS = int(os.getenv("AINAME_DEFAULT_PARTNER_COMMISSION_BPS", "1000"))
 PUBLIC_H5_URL = os.getenv("AINAME_PUBLIC_H5_URL", "http://127.0.0.1:8080").rstrip("/")
 
+# 支付宝沙箱 H5 收银台。密钥只放在本地 .env 或部署环境变量中。
+ALIPAY_APP_ID = os.getenv("AINAME_ALIPAY_APP_ID", "").strip()
+ALIPAY_PRIVATE_KEY = os.getenv("AINAME_ALIPAY_PRIVATE_KEY", "").strip()
+ALIPAY_PUBLIC_KEY = os.getenv("AINAME_ALIPAY_PUBLIC_KEY", "").strip()
+ALIPAY_NOTIFY_URL = os.getenv("AINAME_ALIPAY_NOTIFY_URL", "").strip()
+ALIPAY_RETURN_URL = os.getenv("AINAME_ALIPAY_RETURN_URL", "").strip()
+
 # App version update.
 APP_UPDATE_ENABLED = os.getenv("AINAME_APP_UPDATE_ENABLED", "true").lower() == "true"
-APP_LATEST_VERSION_NAME = os.getenv("AINAME_APP_LATEST_VERSION_NAME", "1.0.3").strip()
-APP_LATEST_VERSION_CODE = int(os.getenv("AINAME_APP_LATEST_VERSION_CODE", "103"))
+APP_LATEST_VERSION_NAME = os.getenv("AINAME_APP_LATEST_VERSION_NAME", "1.0.4").strip()
+APP_LATEST_VERSION_CODE = int(os.getenv("AINAME_APP_LATEST_VERSION_CODE", "104"))
 APP_MIN_VERSION_CODE = int(os.getenv("AINAME_APP_MIN_VERSION_CODE", "0"))
 APP_UPDATE_URL = os.getenv("AINAME_APP_UPDATE_URL", "").strip()
 APP_RELEASE_NOTES = os.getenv("AINAME_APP_RELEASE_NOTES", "").strip()

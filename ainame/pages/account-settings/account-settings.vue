@@ -19,8 +19,8 @@ import { onShow } from '@dcloudio/uni-app';
 import http from '@/http/http.js';
 import { getCurrentAppVersion, getPlatform } from '@/utils/app-version.js';
 
-const versionName = ref('1.0.3');
-const versionCode = ref(103);
+const versionName = ref('1.0.4');
+const versionCode = ref(104);
 const versionText = computed(() => `${versionName.value} (${versionCode.value})`);
 
 const go = url => uni.navigateTo({ url });

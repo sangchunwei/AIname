@@ -121,6 +121,7 @@ async def mock_pay_expert_order(
     user_id: int = Depends(auth_handler.auth_access_dependency),
     session: AsyncSession = Depends(get_session),
 ):
+    raise HTTPException(status_code=410, detail="本地模拟支付已停用，请使用支付宝沙箱支付或余额支付")
     if not settings.MOCK_PAYMENT_ENABLED:
         raise HTTPException(status_code=403, detail="模拟支付未启用")
     order = await session.scalar(select(ExpertOrder).where(ExpertOrder.id == order_id, ExpertOrder.user_id == user_id))

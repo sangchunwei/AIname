@@ -1,109 +1,73 @@
-# AIName 1.0.3 更新报告
+# AIName 1.0.4 更新报告
 
-更新日期：2026-06-23
+更新日期：2026-07-02
 
 ## 一句话版本提示
 
-AIName 1.0.3 在 1.0.2 的品牌视觉、用户运营、社区、专家服务、钱包和分销基础上，新增 B 端开放平台、App 启动页与版本更新检测，并强化社区评论回复、专家订单处理、RAG 后台队列和图像接口错误提示。
+AIName 1.0.4 在 1.0.3 的开放平台、App 版本检测、社区互动、专家订单和 RAG 队列基础上，新增支付宝沙箱 H5 支付、统一支付交易记录、支付结果页、Docker/Nginx 部署配置，并将 VIP、专家服务和钱包充值从本地模拟支付升级为可联调的沙箱支付链路。
 
 ## 版本价值
 
-1.0.2 已经完成从“AI 起名工具”到“品牌冷启动与服务平台”的主体链路；1.0.3 则进一步向两个方向延伸：
+1.0.3 已经完成平台化能力雏形，包括 B 端开放 API、App 更新检测和更完整的用户互动链路。1.0.4 进一步补齐商业闭环中的支付基础设施：
 
-- 面向 C 端用户，提升 App 启动体验、社区互动深度、专家订单处理效率和版本更新能力。
-- 面向 B 端合作方，提供开发者应用、API 密钥、调用额度、开放命名接口和使用日志，为后续 API 商业化、渠道合作和 SaaS 化打基础。
+- 面向 C 端用户：VIP 购买、专家服务付款和钱包充值可以进入支付宝沙箱 H5 收银台，前端可查看支付结果并刷新交易状态。
+- 面向后端业务：新增统一支付交易表，沉淀外部支付订单号、业务类型、金额、支付宝交易号、通知内容和支付时间。
+- 面向部署联调：补充 Dockerfile、docker-compose 和 Nginx 反向代理示例，便于把后端、MySQL、PostgreSQL、Redis 和 Nginx 放进同一部署链路。
 
-## 相比 1.0.2 的主要更新
+## 相比 1.0.3 的主要更新
 
-### 1. B 端开放平台
+### 1. 支付宝沙箱 H5 支付
 
-- 新增开发者应用模型：支持普通登录用户创建自己的开发者应用。
-- 新增 API 密钥管理：创建、重命名、启用、停用、删除 API Key。
-- API Key 使用哈希存储，完整密钥只在创建时返回一次，后续仅显示前缀和尾号。
-- 新增应用演示额度，创建应用后默认拥有测试调用额度。
-- 新增本地演示充值能力，便于联调额度扣减流程。
-- 新增调用日志：记录 request_id、端点、成功/失败状态、扣费次数、返回数量、耗时、请求摘要和错误信息。
-- 新增开发者用量汇总：总调用、成功调用、失败调用、已扣费次数和剩余额度。
-- 前端新增“B 端开放平台”页面，可在个人中心进入。
+- 新增支付宝沙箱签名服务，支持 RSA2 签名、支付宝公钥验签、H5 收银台 URL 构建和交易查询。
+- 新增统一支付路由 `/payments`。
+- VIP 订单支持创建支付宝沙箱支付链接。
+- 专家订单支持创建支付宝沙箱支付链接，并保留待付款超时校验。
+- 钱包充值支持创建支付宝沙箱支付链接，支付确认后自动写入钱包余额流水。
+- 新增支付宝异步通知 `/payments/alipay/notify`。
+- 新增支付宝同步回跳 `/payments/alipay/return`，回跳到前端支付结果页。
+- 新增支付状态查询、同步支付宝交易状态和本地开发确认接口。
 
-开放接口演示端点：
+### 2. 统一支付交易表
 
-```text
-POST /open/v1/names/game-npc
-POST /open/v1/names/novel-character
-POST /open/v1/names/novel-place
-```
+- 新增 `payment_transaction` 模型，用于记录外部交易和内部业务订单的映射。
+- 通过 `business_type + business_order_id` 唯一约束，避免同一业务订单重复创建多笔本地交易。
+- 记录 `out_trade_no`、`provider`、业务类型、业务订单 ID、金额、主题、状态、支付宝交易号、原始通知和支付时间。
+- 新增 Alembic 迁移 `b8f4c2d91a7e_add_payment_transaction.py`。
 
-### 2. App 启动页与版本更新
+### 3. 前端支付体验
 
-- 新增 App 启动页，Android 端展示本地启动封面图、倒计时和跳过按钮。
-- 手机端启动封面倒计时由 5 秒调整为 3 秒。
-- H5 环境自动跳过启动页，避免网页访问时多一步等待。
-- 新增启动目标判断：管理员、已登录用户和未登录用户分别进入对应页面。
-- 新增账号设置页中的版本展示和“版本更新”入口。
-- 后端新增 `/app/version` 接口，返回最新版本号、版本码、是否有更新、是否强制更新、下载地址和更新说明。
-- Android 检测到 APK 下载地址时可下载并安装更新；其他环境会打开更新地址或复制链接。
+- VIP 购买支持选择“支付宝沙箱支付”或“余额支付”。
+- 专家精批下单支持选择“支付宝沙箱支付”或“余额支付”。
+- 钱包充值从“本地模拟充值”调整为“支付宝沙箱充值”。
+- 新增支付结果页 `/pages/payment-result/payment-result`，可按 `out_trade_no` 查询和同步支付状态。
+- 支付成功后按业务类型回到钱包或用户中心。
+- H5 API 地址改为按当前访问主机动态拼接 `:8000`，减少局域网 IP 写死带来的联调成本。
 
-### 3. 社区互动增强
+### 4. 模拟支付收敛
 
-- 社区评论支持回复关系，可显示“回复某用户”。
-- 支持楼中楼回复、展开/收起子回复。
-- 支持评论点赞和取消点赞。
-- 帖子列表支持评论预览，减少用户查看讨论成本。
-- 后端新增评论父级关系、评论点赞表和唯一约束，防止重复点赞。
+- VIP、专家订单和充值的旧模拟支付接口返回 410，提示使用支付宝沙箱支付或余额支付。
+- `AINAME_MOCK_PAYMENT_ENABLED` 仅用于本地开发确认支付结果，生产环境必须关闭。
+- 钱包提现方式收敛为支付宝账号，微信和银行卡提现选项暂不开放。
 
-### 4. 专家服务体验优化
+### 5. Docker 与 Nginx 部署配置
 
-- 专家工作台由简单列表升级为订单列表、状态筛选、订单详情和发布服务 Tab。
-- 订单列表展示客户昵称/邮箱、订单时间、订单金额和状态。
-- 订单详情中集中展示用户需求、AI 内部初稿和最终报告编辑区。
-- 生成 AI 初稿后可即时合并到当前订单状态。
-- 交付报告后更新订单状态，防止重复交付。
-- 新增待支付订单超时逻辑，超过约定时间后自动变为支付超时。
-- 用户可取消未支付专家订单。
-- 余额支付专家服务时会校验订单是否已超时、已取消或已支付。
-
-### 5. 钱包中心显示补全
-
-- 钱包流水展示从单一可用余额变化扩展为可用余额、冻结余额、待结算余额和奖励次数变化。
-- 更方便排查专家收入、平台服务费、合伙人佣金和奖励次数的变化来源。
-- 起名和视觉生成额度从每日结算调整为每 7 天结算一次，额度总数保持不变。
-
-### 6. RAG 知识库后台队列
-
-- 知识库上传接口改为保存文件后投递 RabbitMQ 队列任务。
-- 新增 `rag_worker.py` 独立消费者，用于后台执行文档解析、向量化和入库。
-- 上传接口返回更快，用户不必等待完整解析完成。
-- RabbitMQ 连接已迁移到 `.env` 配置，上传接口和 `rag_worker.py` 统一读取 `AINAME_RABBITMQ_URL` 与 `AINAME_RABBITMQ_RAG_QUEUE`。
-
-### 7. 图像生成接口增强
-
-- 新增 DashScope 真实图像生成提供器，使用官方异步任务接口创建、轮询并下载图片结果。
-- OpenAI-compatible 图像提供器新增更明确的异常处理。
-- HTTP 错误会返回状态码和部分响应内容。
-- 请求失败会返回请求异常类型。
-- 非 JSON 响应会明确提示。
-- 图片列表为空时会带上部分响应内容，便于定位接口格式不兼容问题。
-
-### 8. 前端入口与体验调整
-
-- 新增账号设置页，可集中进入修改个人资料、修改密码和版本更新。
-- 用户中心新增 B 端开放平台入口。
-- 专家、社区、钱包等页面增加更完整的状态展示和交互反馈。
+- 新增 `Dockerfile`，用于构建 FastAPI 后端镜像。
+- 新增 `docker-compose.yml`，包含后端、MySQL、PostgreSQL、Redis 和 Nginx 服务示例。
+- 新增 `nginx.conf`，将 80 端口请求反向代理到后端 `web:8000`。
+- `.env.example` 补充支付宝沙箱配置项。
 
 ## 数据与配置变化
 
 ### 新增数据库迁移
 
-1.0.3 新增两条迁移：
+1.0.4 新增一条迁移：
 
-- `f2b6c9a1d034`：新增 `developer_app`、`developer_api_key`、`developer_usage_log`。
-- `a41c8e72b905`：新增社区评论回复字段、评论点赞表和相关索引/约束。
+- `b8f4c2d91a7e`：新增 `payment_transaction` 表及交易号、业务类型、业务订单、状态、支付宝交易号等索引。
 
 当前最新 Alembic 版本：
 
 ```text
-a41c8e72b905
+b8f4c2d91a7e
 ```
 
 升级命令：
@@ -114,58 +78,44 @@ D:\Anaconda3\envs\fastapi-env\python.exe -m alembic upgrade head
 D:\Anaconda3\envs\fastapi-env\python.exe run.py
 ```
 
-如果测试 RAG 异步入库，还需要启动：
-
-```powershell
-D:\Anaconda3\envs\fastapi-env\python.exe rag_worker.py
-```
-
 ### 新增/建议配置项
 
 ```env
-AINAME_RABBITMQ_URL=amqp://用户名:密码@127.0.0.1:5672/
-AINAME_RABBITMQ_RAG_QUEUE=rag_document_queue
-
 AINAME_APP_UPDATE_ENABLED=true
-AINAME_APP_LATEST_VERSION_NAME=1.0.3
-AINAME_APP_LATEST_VERSION_CODE=103
+AINAME_APP_LATEST_VERSION_NAME=1.0.4
+AINAME_APP_LATEST_VERSION_CODE=104
 AINAME_APP_MIN_VERSION_CODE=0
 AINAME_APP_UPDATE_URL=
-AINAME_APP_RELEASE_NOTES=AIName 1.0.3 新增开放平台、版本检测、启动页和社区/专家体验优化。
+AINAME_APP_RELEASE_NOTES=AIName 1.0.4 新增支付宝沙箱支付、支付结果页、Docker/Nginx 部署配置和支付链路优化。
+
+AINAME_ALIPAY_APP_ID=
+AINAME_ALIPAY_PRIVATE_KEY=
+AINAME_ALIPAY_PUBLIC_KEY=
+AINAME_ALIPAY_NOTIFY_URL=http://127.0.0.1:8000/payments/alipay/notify
+AINAME_ALIPAY_RETURN_URL=http://127.0.0.1:8000/payments/alipay/return
 ```
 
-> 注意：`ainame/manifest.json`、`ainame/utils/app-version.js`、`.env.example` 和后端默认版本配置已同步到 `1.0.3/103`。
+> 注意：`ainame/manifest.json`、`ainame/utils/app-version.js`、`.env.example` 和后端默认版本配置已同步到 `1.0.4/104`。
 
 ## 当前限制
 
-- B 端开放平台仍是本地演示级 PaaS 雏形，额度充值为模拟逻辑，尚未接入真实计费、合同、发票、风控或限流网关。
-- 开放 API 当前复用内部起名工作流，正式商业化前还需要补充更稳定的输出格式、错误码、QPS 限制、签名策略和 API 文档。
-- RAG Worker 当前读取 `.env` 中的 RabbitMQ 配置，正式部署前应使用专用 RabbitMQ 账号密码。
-- 品牌图片默认仍使用 Mock SVG；如需真实生成，可配置 DashScope 提供器和 API Key。
-- 钱包、充值、提现和佣金仍为本地模拟账本，不会产生真实资金转移。
+- 支付宝能力当前面向沙箱联调，不代表已经具备正式收单资质。
+- 支付宝异步通知本地调试时通常需要公网回调地址或内网穿透；本地可使用开发确认接口辅助联调。
+- 提现和佣金仍是本地账本与后台审核流程，不具备真实代付能力。
+- Docker Compose 示例仍需要按部署环境补齐 `.env`、RabbitMQ、Ollama、HTTPS 和域名配置。
 - App 更新下载地址需要部署 APK 包后配置，当前为空时只会提示未配置下载地址。
 
 ## 建议测试范围
 
-- H5 与 Android：启动页跳转、登录状态跳转、个人中心、账号设置和版本检测。
-- 开放平台：创建应用、创建 API Key、停用/启用/删除密钥、演示充值、调用开放 API、查看额度扣减和调用日志。
-- 社区：发帖、评论、回复评论、展开/收起回复、点赞帖子、点赞评论、投票和改投。
-- 专家服务：创建订单、待支付超时、取消订单、余额支付、专家生成初稿、交付报告、重复交付保护。
-- 钱包：可用余额、冻结余额、待结算余额、奖励次数流水是否正确展示。
-- RAG：上传文件后接口是否快速返回，RabbitMQ 队列和 `rag_worker.py` 是否正常消费任务。
-- 图像接口：Mock 模式是否正常；DashScope 模式是否能创建任务、轮询成功并下载图片；OpenAI-compatible 模式在错误 URL、错误 Key、非 JSON 返回和空结果时是否能显示明确错误。
-- 数据库：执行 Alembic 到 `a41c8e72b905` 后，开放平台表和社区评论点赞表是否存在。
+- 支付：VIP 支付、专家支付、钱包充值、支付结果页刷新、支付宝同步查询、本地开发确认。
+- 钱包：充值入账、余额支付、提现申请、资金流水和奖励次数展示。
+- 专家服务：创建订单、支付宝支付、余额支付、待付款超时、取消订单和报告交付。
+- VIP：创建订单、支付宝支付、余额支付、订阅开通、分销佣金生成。
+- 数据库：执行 Alembic 到 `b8f4c2d91a7e` 后确认 `payment_transaction` 表存在。
+- 部署：`docker compose config` 是否能正确解析，Nginx 是否能代理到 `web:8000`。
 
 ## 提交建议
 
-如果本次只提交文档：
-
 ```text
-docs: update AIName 1.0.3 release notes
-```
-
-如果连同 1.0.3 功能代码一起提交：
-
-```text
-feat: add open platform, app update flow and community replies
+feat: add alipay sandbox payment flow and docker deployment config
 ```

@@ -53,3 +53,4 @@ from . import community
 from . import expert
 from . import growth
 from . import open_platform
+from . import payment

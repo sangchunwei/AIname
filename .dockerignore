@@ -1,0 +1,14 @@
+.git
+.idea
+.agents
+.codex
+.env
+.env.*
+!.env.example
+__pycache__/
+*.py[cod]
+ainame/.hbuilderx/
+ainame/unpackage/
+uploads/
+generated/
+chroma_rag_db/

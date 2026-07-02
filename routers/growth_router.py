@@ -69,7 +69,12 @@ async def create_recharge(
     user_id: int = Depends(auth_handler.auth_access_dependency),
     session: AsyncSession = Depends(get_session),
 ):
-    order = RechargeOrder(order_no=f"RCG{datetime.now():%Y%m%d%H%M%S}{uuid4().hex[:8].upper()}", user_id=user_id, amount_cents=data.amount_cents)
+    order = RechargeOrder(
+        order_no=f"RCG{datetime.now():%Y%m%d%H%M%S}{uuid4().hex[:8].upper()}",
+        user_id=user_id,
+        amount_cents=data.amount_cents,
+        provider="alipay_sandbox",
+    )
     session.add(order)
     await session.commit(); await session.refresh(order)
     return {"id": order.id, "order_no": order.order_no, "amount_cents": order.amount_cents, "status": order.status}
@@ -81,6 +86,7 @@ async def mock_pay_recharge(
     user_id: int = Depends(auth_handler.auth_access_dependency),
     session: AsyncSession = Depends(get_session),
 ):
+    raise HTTPException(status_code=410, detail="本地模拟充值已停用，请使用支付宝沙箱充值")
     if not settings.MOCK_PAYMENT_ENABLED:
         raise HTTPException(status_code=403, detail="模拟支付未启用")
     order = await session.scalar(select(RechargeOrder).where(RechargeOrder.id == order_id, RechargeOrder.user_id == user_id))

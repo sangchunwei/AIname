@@ -52,6 +52,10 @@
       "style": { "navigationBarTitleText": "钱包与邀请", "enablePullDownRefresh": true }
     },
     {
+      "path": "pages/payment-result/payment-result",
+      "style": { "navigationBarTitleText": "支付结果" }
+    },
+    {
       "path": "pages/community/community",
       "style": { "navigationBarTitleText": "灵感社区", "enablePullDownRefresh": true }
     },

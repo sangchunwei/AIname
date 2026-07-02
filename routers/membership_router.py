@@ -186,7 +186,7 @@ async def create_vip_order(
     order = VipOrder(
         order_no=f"VIP{datetime.now():%Y%m%d%H%M%S}{uuid4().hex[:8].upper()}",
         user_id=user_id, plan_id=plan.id, amount_cents=plan.price_cents,
-        status="pending", payment_provider="mock",
+        status="pending", payment_provider="pending",
     )
     session.add(order)
     await session.commit()
@@ -200,6 +200,7 @@ async def mock_pay_vip_order(
     user_id: int = Depends(auth_handler.auth_access_dependency),
     session: AsyncSession = Depends(get_session),
 ):
+    raise HTTPException(status_code=410, detail="本地模拟支付已停用，请使用支付宝沙箱支付或余额支付")
     if not settings.MOCK_PAYMENT_ENABLED:
         raise HTTPException(status_code=403, detail="模拟支付未启用")
     order = await session.scalar(select(VipOrder).where(VipOrder.id == order_id, VipOrder.user_id == user_id))

@@ -1,7 +1,10 @@
 // http/http.js
 
 // 动态获取环境：开发模式连接本地后端，发行模式连接线上域名
-const BASE_URL = "http://192.168.151.21:8000";
+const DEFAULT_API_BASE_URL = "http://127.0.0.1:8000";
+const BASE_URL = typeof window !== 'undefined' && window.location?.hostname
+  ? `${window.location.protocol}//${window.location.hostname}:8000`
+  : DEFAULT_API_BASE_URL;
 
 const isAuthExpiredError = (statusCode, message) => {
   if (![401, 403].includes(statusCode)) return false;
@@ -168,7 +171,7 @@ export default {
   changePassword: (data) => request('/me/password', { method: 'POST', data }),
   getVipPlans: () => request('/vip/plans', { method: 'GET' }),
   createVipOrder: (planCode) => request('/vip/orders', { method: 'POST', data: { plan_code: planCode } }),
-  mockPayVipOrder: (orderId) => request(`/vip/orders/${orderId}/mock-pay`, { method: 'POST' }),
+  alipayVipOrder: (orderId) => request(`/payments/alipay/vip/${orderId}/page-pay`, { method: 'POST' }),
   getVipOrders: () => request('/vip/orders', { method: 'GET' }),
 
   // ================= 6. 社区与灵感投票 =================
@@ -185,7 +188,7 @@ export default {
   // ================= 7. 专家精批 =================
   getExpertServices: () => request('/experts/services', { method: 'GET' }),
   createExpertOrder: (data) => request('/experts/orders', { method: 'POST', data }),
-  mockPayExpertOrder: (orderId) => request(`/experts/orders/${orderId}/mock-pay`, { method: 'POST' }),
+  alipayExpertOrder: (orderId) => request(`/payments/alipay/expert/${orderId}/page-pay`, { method: 'POST' }),
   getExpertOrders: () => request('/experts/orders', { method: 'GET' }),
   cancelExpertOrder: (orderId) => request(`/experts/orders/${orderId}/cancel`, { method: 'POST' }),
   getExpertWorkbenchOrders: () => request('/experts/workbench/orders', { method: 'GET' }),
@@ -196,7 +199,10 @@ export default {
   // ================= 8. 钱包、邀请与分销 =================
   getGrowthCenter: () => request('/growth', { method: 'GET' }),
   createRecharge: (amountCents) => request('/growth/recharges', { method: 'POST', data: { amount_cents: amountCents } }),
-  mockPayRecharge: (orderId) => request(`/growth/recharges/${orderId}/mock-pay`, { method: 'POST' }),
+  alipayRecharge: (orderId) => request(`/payments/alipay/recharge/${orderId}/page-pay`, { method: 'POST' }),
+  getPaymentStatus: (outTradeNo) => request(`/payments/${encodeURIComponent(outTradeNo)}`, { method: 'GET' }),
+  syncAlipayPayment: (outTradeNo) => request(`/payments/alipay/${encodeURIComponent(outTradeNo)}/sync`, { method: 'POST' }),
+  devConfirmPayment: (outTradeNo) => request(`/payments/alipay/${encodeURIComponent(outTradeNo)}/dev-confirm`, { method: 'POST' }),
   createWithdrawal: (data) => request('/growth/withdrawals', { method: 'POST', data }),
   applyPartner: (data) => request('/growth/partner/apply', { method: 'POST', data }),
   payVipWithBalance: (orderId) => request(`/growth/pay/vip/${orderId}`, { method: 'POST' }),

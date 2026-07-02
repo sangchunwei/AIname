@@ -1,28 +1,96 @@
 <template>
   <view class="page">
-    <view class="hero"><view class="hero-title">真人专家精批</view><view>AI 提效，专家审核，为重要名字提供更有分量的决策依据。</view></view>
+    <view class="hero">
+      <view class="hero-title">真人专家精批</view>
+      <view>AI 提效，专家审核，为重要名字提供更有分量的决策依据。</view>
+    </view>
+
     <view v-if="!services.length" class="empty">暂无已认证专家服务</view>
     <view class="service" v-for="item in services" :key="item.id">
-      <view class="expert-row"><view class="avatar">{{ item.expert_name.slice(0,1) }}</view><view><view class="expert-name">{{ item.expert_name }} <text>已认证</text></view><view class="expert-title">{{ item.expert_title }} · {{ item.category }}</view></view></view>
-      <view class="service-name">{{ item.name }}</view><view class="desc">{{ item.description }}</view>
-      <view class="footer"><view><text class="price">¥{{ (item.price_cents/100).toFixed(2) }}</text><text class="days">约 {{ item.delivery_days }} 天交付</text></view><button size="mini" @click="selectService(item)">立即咨询</button></view>
+      <view class="expert-row">
+        <view class="avatar">{{ item.expert_name.slice(0,1) }}</view>
+        <view>
+          <view class="expert-name">{{ item.expert_name }} <text>已认证</text></view>
+          <view class="expert-title">{{ item.expert_title }} · {{ item.category }}</view>
+        </view>
+      </view>
+      <view class="service-name">{{ item.name }}</view>
+      <view class="desc">{{ item.description }}</view>
+      <view class="footer">
+        <view><text class="price">¥{{ yuan(item.price_cents) }}</text><text class="days">约 {{ item.delivery_days }} 天交付</text></view>
+        <button size="mini" @click="selectService(item)">立即咨询</button>
+      </view>
     </view>
+
     <view class="order-panel" v-if="selectedService">
-      <view class="close" @click="selectedService=null">×</view><view class="panel-title">提交精批需求</view><view class="chosen">{{ selectedService.expert_name }} · {{ selectedService.name }}</view>
-      <input class="input" v-model="orderForm.selected_name" placeholder="需要精批的姓名或品牌名"/><textarea class="textarea" v-model="orderForm.requirements" placeholder="详细说明背景、用途和关注点"></textarea>
-      <button class="submit" @click="submitOrder">创建订单</button>
+      <view class="close" @click="selectedService=null">×</view>
+      <view class="panel-title">提交精批需求</view>
+      <view class="chosen">{{ selectedService.expert_name }} · {{ selectedService.name }}</view>
+      <input class="input" v-model="orderForm.selected_name" placeholder="需要精批的姓名或品牌名" />
+      <textarea class="textarea" v-model="orderForm.requirements" placeholder="详细说明背景、用途和关注点"></textarea>
+      <button class="submit" @click="submitOrder">创建订单并付款</button>
     </view>
   </view>
 </template>
 
 <script setup>
-import { ref } from 'vue';import { onShow } from '@dcloudio/uni-app';import http from '@/http/http.js';
-const services=ref([]),selectedService=ref(null),orderForm=ref({selected_name:'',requirements:''});
-const load=async()=>services.value=await http.getExpertServices();
-const selectService=item=>selectedService.value=item;
-const goRecharge=()=>uni.navigateTo({url:'/pages/wallet-growth/wallet-growth'});
-const handlePayError=order=>uni.showModal({title:'余额不足',content:'订单已保留 10 分钟。是否前往钱包充值后继续支付？',confirmText:'去充值',cancelText:'暂不处理',success:res=>{if(res.confirm)goRecharge();else uni.showToast({title:'订单已进入待付款',icon:'none'})}});
-const submitOrder=async()=>{if(!orderForm.value.selected_name||orderForm.value.requirements.length<5)return uni.showToast({title:'请完整填写需求',icon:'none'});const order=await http.createExpertOrder({service_id:selectedService.value.id,...orderForm.value});uni.showModal({title:'确认余额支付',content:`将从钱包支付 ¥${(order.amount_cents/100).toFixed(2)}`,success:async res=>{if(res.confirm){try{await http.payExpertWithBalance(order.id);uni.showToast({title:'余额支付成功'})}catch(_){handlePayError(order)}}else{uni.showToast({title:'订单已进入待付款',icon:'none'})}selectedService.value=null;orderForm.value={selected_name:'',requirements:''}}})};
+import { ref } from 'vue';
+import { onShow } from '@dcloudio/uni-app';
+import http from '@/http/http.js';
+
+const services = ref([]);
+const selectedService = ref(null);
+const orderForm = ref({ selected_name: '', requirements: '' });
+
+const yuan = cents => (cents / 100).toFixed(2);
+const load = async () => { services.value = await http.getExpertServices(); };
+const selectService = item => { selectedService.value = item; };
+const goRecharge = () => uni.navigateTo({ url: '/pages/wallet-growth/wallet-growth' });
+const openPayUrl = pay => {
+  if (!pay?.pay_url) return uni.showToast({ title: '支付订单状态异常', icon: 'none' });
+  if (typeof window !== 'undefined') {
+    const opened = window.open(pay.pay_url, '_blank');
+    if (!opened) window.location.href = pay.pay_url;
+    else uni.navigateTo({ url: `/pages/payment-result/payment-result?out_trade_no=${encodeURIComponent(pay.out_trade_no)}` });
+    return;
+  }
+  uni.setClipboardData({ data: pay.pay_url });
+  uni.showToast({ title: '支付链接已复制', icon: 'none' });
+};
+const payWithBalance = async order => {
+  try {
+    await http.payExpertWithBalance(order.id);
+    uni.showToast({ title: '余额支付成功' });
+  } catch (_) {
+    uni.showModal({
+      title: '余额不足',
+      content: '订单已保留 10 分钟。是否前往钱包充值后继续支付？',
+      confirmText: '去充值',
+      cancelText: '暂不处理',
+      success: res => { if (res.confirm) goRecharge(); }
+    });
+  }
+};
+const submitOrder = async () => {
+  if (!orderForm.value.selected_name || orderForm.value.requirements.length < 5) {
+    return uni.showToast({ title: '请完整填写需求', icon: 'none' });
+  }
+  const order = await http.createExpertOrder({ service_id: selectedService.value.id, ...orderForm.value });
+  uni.showActionSheet({
+    itemList: ['支付宝沙箱支付', '余额支付'],
+    success: async res => {
+      if (res.tapIndex === 0) await openPayUrl(await http.alipayExpertOrder(order.id));
+      else await payWithBalance(order);
+      selectedService.value = null;
+      orderForm.value = { selected_name: '', requirements: '' };
+    },
+    fail: () => {
+      selectedService.value = null;
+      orderForm.value = { selected_name: '', requirements: '' };
+      uni.showToast({ title: '订单已进入待付款', icon: 'none' });
+    }
+  });
+};
 onShow(load);
 </script>
 

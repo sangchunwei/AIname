@@ -1,5 +1,59 @@
 # Changelog
 
+## [1.0.4] - 2026-07-02
+
+版本更新：在 1.0.3 的开放平台、App 版本检测、社区互动、专家订单和 RAG 队列基础上，新增支付宝沙箱 H5 支付、统一支付交易记录、支付结果页和 Docker/Nginx 部署配置。
+
+### 支付宝沙箱支付
+- 新增支付宝沙箱签名服务，支持 RSA2 签名、支付宝公钥验签、H5 收银台 URL 构建和交易查询。
+- 新增 `/payments` 支付路由，覆盖 VIP 订单、专家订单和钱包充值三类业务。
+- 新增支付宝异步通知、同步回跳、交易状态查询、支付宝交易同步和本地开发确认接口。
+- 支付成功后自动开通 VIP、推进专家订单状态、写入钱包充值流水，并生成相应分销佣金。
+
+### 统一支付交易表
+- 新增 `payment_transaction` 模型和 Alembic 迁移 `b8f4c2d91a7e`。
+- 记录 `out_trade_no`、支付渠道、业务类型、业务订单 ID、金额、主题、状态、支付宝交易号、原始通知和支付时间。
+- 通过 `business_type + business_order_id` 唯一约束避免同一业务订单重复创建本地支付交易。
+
+### 前端支付体验
+- VIP 购买、专家下单和钱包充值支持打开支付宝沙箱 H5 收银台。
+- 新增 `/pages/payment-result/payment-result` 支付结果页，可按 `out_trade_no` 刷新和同步支付状态。
+- 余额支付保留为钱包余额消费方式；旧模拟支付入口停用。
+- 钱包提现方式收敛为支付宝账号。
+- H5 API 基础地址改为按当前访问主机动态拼接后端端口，便于局域网和容器联调。
+
+### 部署与配置
+- 新增 `Dockerfile`、`docker-compose.yml` 和 `nginx.conf` 部署示例。
+- `.env.example` 补充支付宝沙箱配置项。
+- `requirements.txt` 补充 `cryptography` 与 `starlette`。
+- App 与后端默认版本同步为 `1.0.4/104`。
+
+### 升级说明
+
+```powershell
+D:\Anaconda3\envs\fastapi-env\python.exe -m pip install -r requirements.txt
+D:\Anaconda3\envs\fastapi-env\python.exe -m alembic upgrade head
+D:\Anaconda3\envs\fastapi-env\python.exe run.py
+```
+
+建议同步配置：
+```env
+AINAME_APP_UPDATE_ENABLED=true
+AINAME_APP_LATEST_VERSION_NAME=1.0.4
+AINAME_APP_LATEST_VERSION_CODE=104
+AINAME_APP_MIN_VERSION_CODE=0
+AINAME_APP_UPDATE_URL=
+AINAME_APP_RELEASE_NOTES=AIName 1.0.4 新增支付宝沙箱支付、支付结果页、Docker/Nginx 部署配置和支付链路优化。
+
+AINAME_ALIPAY_APP_ID=
+AINAME_ALIPAY_PRIVATE_KEY=
+AINAME_ALIPAY_PUBLIC_KEY=
+AINAME_ALIPAY_NOTIFY_URL=http://127.0.0.1:8000/payments/alipay/notify
+AINAME_ALIPAY_RETURN_URL=http://127.0.0.1:8000/payments/alipay/return
+```
+
+> 本次文档按 1.0.4 整理；`ainame/manifest.json`、`ainame/utils/app-version.js`、`.env.example` 和后端默认版本配置已同步为 `1.0.4/104`。
+
 ## [1.0.3] - 2026-06-23
 
 版本更新：在 1.0.2 的品牌视觉、VIP、社区、专家服务、钱包和分销体系基础上，新增 B 端开放平台、App 启动页与版本检测，并完善社区回复、专家订单、RAG 后台任务和图像接口错误提示。

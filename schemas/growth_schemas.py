@@ -10,7 +10,7 @@ class RechargeCreateIn(BaseModel):
 
 class WithdrawalCreateIn(BaseModel):
     amount_cents: int = Field(..., ge=100, le=10000000)
-    method: Literal["wechat", "alipay", "bank"]
+    method: Literal["alipay"]
     destination: str = Field(..., min_length=3, max_length=300)
     account_name: str = Field(..., min_length=2, max_length=100)
 
